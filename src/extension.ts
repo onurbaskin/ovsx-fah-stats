@@ -233,10 +233,16 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			// Status bar text
-			const teamInfo = selectedTeam
-				? ` | Team: ${selectedTeam.name} (${formatNumber(selectedTeam.score)})`
+			const teamRankFormatted = selectedTeam
+				? formatNumber(selectedTeam.trank)
 				: "";
-			statusBarItem.text = `$(pulse) FAH: ${scoreFormatted} pts | Rank: ${rankFormatted}${teamInfo}`;
+			const teamScoreFormatted = selectedTeam
+				? formatNumber(selectedTeam.tscore)
+				: "";
+			const teamInfo = selectedTeam
+				? ` | ${selectedTeam.name} #${teamRankFormatted} • ${teamScoreFormatted} pts`
+				: "";
+			statusBarItem.text = `FAH • ${userName}: #${rankFormatted} • ${scoreFormatted} pts${teamInfo}`;
 			statusBarItem.tooltip = tooltipParts.join("\n");
 		} catch (error) {
 			console.error("Error fetching FAH stats:", error);

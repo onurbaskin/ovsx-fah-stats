@@ -16,7 +16,7 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 
 ## Screenshots
 
-<img width="476" height="124" alt="Image" src="https://github.com/user-attachments/assets/1fe1a566-b10a-45ea-9343-33f308ad7cc8" />
+<img width="458" height="69" alt="Image" src="https://github.com/user-attachments/assets/28671f9d-b3ad-4b3d-a1cb-717a316db95c" />
 
 ## Installation
 
