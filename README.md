@@ -1,7 +1,7 @@
 # Folding@Home Stats
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![VS Code Version](https://img.shields.io/badge/VS%20Code-1.74.0+-blue.svg)](https://code.visualstudio.com/)
+[![VS Code Version](https://img.shields.io/badge/VS%20Code-1.106.0+-blue.svg)](https://code.visualstudio.com/)
 
 A VS Code extension that displays your [Folding@Home](https://foldingathome.org/) statistics directly in the status bar. Track your contributions to scientific research while you code!
 
@@ -61,17 +61,14 @@ Or install directly from the [Open VSX Registry](https://open-vsx.org/extension/
    bun run compile
    ```
 
-4. Package the extension:
-   ```bash
-   bun run package
-   ```
-
-5. Install the `.vsix` file:
-   - Open VS Code
-   - Go to Extensions view
-   - Click the `...` menu
-   - Select "Install from VSIX..."
-   - Choose the generated `.vsix` file
+4. Package and install the extension:
+   - Use the Open VSX CLI to package (see Publishing section), or
+   - Install from a `.vsix` file:
+     1. Open VS Code
+     2. Go to Extensions view
+     3. Click the `...` menu
+     4. Select "Install from VSIX..."
+     5. Choose the generated `.vsix` file
 
 ## ⚙️ Configuration
 
@@ -147,7 +144,7 @@ You can refresh statistics at any time by:
 
 ### Prerequisites
 
-- [VS Code](https://code.visualstudio.com/) 1.74.0 or higher
+- [VS Code](https://code.visualstudio.com/) 1.106.0 or higher
 - [Bun](https://bun.sh/) (or Node.js 18+ with npm)
 - TypeScript knowledge
 
@@ -188,10 +185,7 @@ bun run watch
 # Lint code
 bun run lint
 
-# Package extension for Open VSX
-bun run package
-
-# Publish to Open VSX (requires ovsx CLI)
+# Publish to Open VSX (requires ovsx CLI, automatically packages extension)
 bun run publish
 ```
 
@@ -225,12 +219,7 @@ ovsx-fah-stats/
 
 2. Update `package.json` with your publisher name
 
-3. Package the extension:
-   ```bash
-   bun run package
-   ```
-
-4. Publish to Open VSX:
+3. Publish to Open VSX (the `ovsx publish` command automatically packages the extension):
    ```bash
    ovsx publish
    ```

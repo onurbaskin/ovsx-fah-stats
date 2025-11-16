@@ -1,6 +1,6 @@
 {
 	"name": "folding-at-home-stats",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/onurbaskin/ovsx-fah-stats.git"
@@ -82,7 +82,7 @@
 	"description": "Display Folding@Home statistics in the VS Code status bar. Track your contributions to scientific research while you code!",
 	"icon": "media/icons/folding-at-home-logo.png",
 	"engines": {
-		"vscode": "^1.74.0"
+		"vscode": "^1.106.0"
 	},
 	"license": "MIT",
 	"publisher": "onurbaskin",
