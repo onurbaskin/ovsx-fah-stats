@@ -1,0 +1,98 @@
+{
+	"name": "folding-at-home-stats",
+	"version": "0.1.3",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/onurbaskin/ovsx-fah-stats.git"
+	},
+	"main": "./out/extension.js",
+	"devDependencies": {
+		"@types/node": "^20.10.0",
+		"@types/vscode": "^1.74.0",
+		"@typescript-eslint/eslint-plugin": "^6.13.0",
+		"@typescript-eslint/parser": "^6.13.0",
+		"eslint": "^8.54.0",
+		"typescript": "^5.3.2"
+	},
+	"dependencies": {
+		"axios": "^1.7.9",
+		"ovsx": "^0.10.6"
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"categories": [
+		"Other"
+	],
+	"keywords": [
+		"folding",
+		"foldingathome",
+		"folding@home",
+		"stats",
+		"statistics",
+		"science",
+		"research",
+		"distributed-computing"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "fah-stats.refresh",
+				"title": "Refresh Folding@Home Stats"
+			},
+			{
+				"command": "fah-stats.welcome",
+				"title": "Open Welcome Page",
+				"category": "Folding@Home Stats"
+			},
+			{
+				"command": "fah-stats.reset",
+				"title": "Reset Configuration",
+				"category": "Folding@Home Stats"
+			}
+		],
+		"configuration": {
+			"title": "Folding@Home Stats",
+			"properties": {
+				"fahStats.userName": {
+					"type": "string",
+					"default": "",
+					"description": "Your Folding@Home user ID (numeric ID, required for fetching statistics)"
+				},
+				"fahStats.teamName": {
+					"type": "string",
+					"default": "",
+					"description": "Preferred team name to track (optional - if not specified, the team with largest contribution will be selected)"
+				},
+				"fahStats.passkey": {
+					"type": "string",
+					"default": "",
+					"description": "Your Folding@Home passkey"
+				},
+				"fahStats.refreshInterval": {
+					"type": "number",
+					"default": 300,
+					"description": "Refresh interval in seconds (default: 300 = 5 minutes)",
+					"minimum": 10
+				}
+			}
+		}
+	},
+	"displayName": "Folding at Home Stats",
+	"description": "Display Folding@Home statistics in the VS Code status bar. Track your contributions to scientific research while you code!",
+	"icon": "media/icons/folding-at-home-logo.png",
+	"engines": {
+		"vscode": "^1.74.0"
+	},
+	"license": "MIT",
+	"publisher": "onurbaskin",
+	"scripts": {
+		"vscode:prepublish": "bun run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "bun run compile && bun run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./out/test/runTest.js",
+		"publish": "ovsx publish"
+	}
+}
