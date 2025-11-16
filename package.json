@@ -90,13 +90,9 @@
 	"license": "MIT",
 	"publisher": "onurbaskin",
 	"scripts": {
-		"vscode:prepublish": "npm install && bun run compile",
 		"compile": "node esbuild.config.js --production",
-		"watch": "node esbuild.config.js --watch",
-		"pretest": "bun run compile && bun run lint",
-		"lint": "eslint src --ext ts",
-		"test": "node ./out/test/runTest.js",
-		"package": "vsce package",
-		"publish": "npm install && ovsx publish"
+		"package": "bun run compile && bun vsce package",
+		"publish:ovsx": "bun run compile && bun ovsx publish --pat \"${OVSX_PAT}\"",
+		"publish:vscode": "bun run compile && bun vsce publish"
 	}
 }
