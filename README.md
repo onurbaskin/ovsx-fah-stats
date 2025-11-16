@@ -30,7 +30,7 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 
 ## Screenshots
 
-![status bar displaying the fah stats](https://github.com/onurbaskin/ovsx-fah-stats/media/screenshots/status_bar.png)
+<img width="476" height="124" alt="Image" src="https://github.com/user-attachments/assets/1fe1a566-b10a-45ea-9343-33f308ad7cc8" />
 
 ## Installation
 
