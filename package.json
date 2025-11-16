@@ -1,6 +1,6 @@
 {
 	"name": "folding-at-home-stats",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/onurbaskin/ovsx-fah-stats.git"
@@ -11,6 +11,7 @@
 		"@types/vscode": "^1.74.0",
 		"@typescript-eslint/eslint-plugin": "^6.13.0",
 		"@typescript-eslint/parser": "^6.13.0",
+		"esbuild": "^0.27.0",
 		"eslint": "^8.54.0",
 		"typescript": "^5.3.2"
 	},
@@ -83,17 +84,18 @@
 	"description": "Display Folding@Home statistics in the VS Code status bar. Track your contributions to scientific research while you code!",
 	"icon": "media/icons/folding-at-home-logo.png",
 	"engines": {
-		"vscode": "^1.106.0"
+		"vscode": "^1.99.0"
 	},
 	"license": "MIT",
 	"publisher": "onurbaskin",
 	"scripts": {
 		"vscode:prepublish": "bun run compile",
-		"compile": "tsc -p ./",
-		"watch": "tsc -watch -p ./",
+		"compile": "node esbuild.config.js --production",
+		"watch": "node esbuild.config.js --watch",
 		"pretest": "bun run compile && bun run lint",
 		"lint": "eslint src --ext ts",
 		"test": "node ./out/test/runTest.js",
+		"package": "vsce package",
 		"publish": "ovsx publish"
 	}
 }
