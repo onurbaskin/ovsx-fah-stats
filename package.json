@@ -1,23 +1,23 @@
 {
 	"name": "folding-at-home-stats",
-	"version": "0.1.8",
+	"version": "0.1.9",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/onurbaskin/ovsx-fah-stats.git"
 	},
 	"main": "./out/extension.js",
 	"devDependencies": {
-		"@types/node": "^20.10.0",
-		"@types/vscode": "^1.74.0",
-		"@typescript-eslint/eslint-plugin": "^6.13.0",
-		"@typescript-eslint/parser": "^6.13.0",
+		"@types/node": "^24.10.1",
+		"@types/vscode": "1.99.0",
+		"@typescript-eslint/eslint-plugin": "^8.46.4",
+		"@typescript-eslint/parser": "^8.46.4",
 		"esbuild": "^0.27.0",
-		"eslint": "^8.54.0",
-		"typescript": "^5.3.2"
+		"eslint": "^9.39.1",
+		"ovsx": "^0.10.6",
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"axios": "^1.7.9",
-		"ovsx": "^0.10.6"
+		"axios": "^1.13.2"
 	},
 	"activationEvents": [
 		"onStartupFinished"
@@ -89,13 +89,13 @@
 	"license": "MIT",
 	"publisher": "onurbaskin",
 	"scripts": {
-		"vscode:prepublish": "bun run compile",
+		"vscode:prepublish": "npm install && bun run compile",
 		"compile": "node esbuild.config.js --production",
 		"watch": "node esbuild.config.js --watch",
 		"pretest": "bun run compile && bun run lint",
 		"lint": "eslint src --ext ts",
 		"test": "node ./out/test/runTest.js",
 		"package": "vsce package",
-		"publish": "ovsx publish"
+		"publish": "npm install && ovsx publish"
 	}
 }
