@@ -1,6 +1,6 @@
 {
 	"name": "folding-at-home-stats",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/onurbaskin/ovsx-fah-stats.git"
@@ -38,7 +38,8 @@
 		"commands": [
 			{
 				"command": "fah-stats.refresh",
-				"title": "Refresh Folding@Home Stats"
+				"title": "Refresh Folding@Home Stats",
+				"category": "Folding@Home Stats"
 			},
 			{
 				"command": "fah-stats.welcome",
