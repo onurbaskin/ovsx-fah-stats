@@ -20,17 +20,15 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 
 ## Installation
 
-1. Open VS Code Extensions view (`Cmd+Shift+X` / `Ctrl+Shift+X`)
+1. Open Extensions view (`Cmd+Shift+X` / `Ctrl+Shift+X`)
 2. Search for "Folding@Home Stats"
 3. Click Install
 
-Or install from the [Open VSX Registry](https://open-vsx.org/extension/your-publisher-name/folding-at-home-stats)
-
-## Configuration
+## Setup
 
 On first install, a welcome page opens automatically. Enter your Folding@Home user ID to get started.
 
-### Manual Configuration
+### Manual Setup
 
 Add to your `settings.json`:
 
@@ -45,11 +43,7 @@ Add to your `settings.json`:
 
 ## Usage
 
-Statistics appear automatically in the status bar. Hover for detailed tooltips. Refresh by clicking the status bar item or using the Command Palette (`Cmd+Shift+P`):
-
-- **Folding@Home Stats: Refresh Folding@Home Stats**
-- **Folding@Home Stats: Open Welcome Page**
-- **Folding@Home Stats: Reset Configuration**
+Statistics appear automatically in the status bar. Hover for tooltips. Click the status bar item or use Command Palette (`Cmd+Shift+P`) to refresh.
 
 ## Development
 
@@ -61,23 +55,13 @@ Statistics appear automatically in the status bar. Hover for detailed tooltips. 
 ### Setup
 
 ```bash
-git clone https://github.com/yourusername/ovsx-fah-stats.git
+git clone https://github.com/onurbaskin/ovsx-fah-stats.git
 cd ovsx-fah-stats
 bun install
 bun run compile
-code .
 ```
 
-Press `F5` to launch Extension Development Host.
-
-### Scripts
-
-```bash
-bun run compile  # Compile TypeScript
-bun run watch    # Watch mode
-bun run lint     # Lint code
-bun run publish  # Publish to Open VSX
-```
+Press `F5` in VS Code to launch Extension Development Host.
 
 ## Contributing
 
@@ -95,9 +79,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- **[Folding@Home](https://foldingathome.org/)** - For their incredible work in distributed computing for scientific research. This extension uses the [Folding@Home API](https://api2.foldingathome.org/) to fetch statistics.
-- Built with [VS Code Extension API](https://code.visualstudio.com/api)
-- Powered by [TypeScript](https://www.typescriptlang.org/) and [Axios](https://axios-http.com/)
+**[Folding@Home](https://foldingathome.org/)** - For their work in distributed computing for scientific research. This extension uses the [Folding@Home API](https://api2.foldingathome.org/) to fetch statistics.
 
 ---
 
