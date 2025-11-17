@@ -16,7 +16,7 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 
 ## Screenshots
 
-![Status Bar](https://raw.githubusercontent.com/onurbaskin/ovsx-fah-stats/main/media/screenshots/status_bar.png)
+![Status Bar](https://raw.githubusercontent.com/onurbaskin/ovsx-fah-stats/main/media/screenshots/status_bar_v0_1_13.png)
 
 ## Installation
 
