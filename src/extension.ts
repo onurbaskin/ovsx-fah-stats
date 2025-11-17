@@ -269,9 +269,13 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	};
 
-	// Format large numbers (e.g., 1000 -> 1K, 1000000 -> 1M)
+	// Format large numbers (e.g., 1000 -> 1K, 1000000 -> 1M, 1000000000 -> 1B, 1000000000000 -> 1T)
 	const formatNumber = (num: number): string => {
-		if (num >= 1000000) {
+		if (num >= 1000000000000) {
+			return `${(num / 1000000000000).toFixed(1)}T`;
+		} else if (num >= 1000000000) {
+			return `${(num / 1000000000).toFixed(1)}B`;
+		} else if (num >= 1000000) {
 			return `${(num / 1000000).toFixed(1)}M`;
 		} else if (num >= 1000) {
 			return `${(num / 1000).toFixed(1)}K`;
