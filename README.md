@@ -49,7 +49,7 @@ Statistics appear automatically in the status bar. Hover for tooltips. Click the
 
 ### Prerequisites
 
-- VS Code 1.106.0+
+- VS Code 1.99.0+
 - Bun (or Node.js 18+ with npm)
 
 ### Setup
