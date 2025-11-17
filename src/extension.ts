@@ -198,29 +198,14 @@ export function activate(context: vscode.ExtensionContext) {
 			const rankFormatted = formatNumber(userRank);
 
 			// Build tooltip with configured values and fetched stats
-			const tooltipParts: string[] = ["Folding@Home Stats"];
+			const tooltipParts: string[] = [];
 
-			tooltipParts.push(`User: ${userName}`);
-			if (stats.id) {
-				tooltipParts.push(`User ID: ${stats.id}`);
-			}
-
-			if (selectedTeam) {
-				tooltipParts.push(`Team: ${selectedTeam.name}`);
-				tooltipParts.push(`Team ID: ${selectedTeam.team}`);
-				tooltipParts.push(`Team Rank: ${selectedTeam.trank.toLocaleString()}`);
-			}
-
-			tooltipParts.push("---");
-			tooltipParts.push(`Total Score: ${userScore.toLocaleString()}`);
-			tooltipParts.push(`Work Units: ${userWus.toLocaleString()}`);
+			// User Stats section
+			tooltipParts.push("User Stats:");
+			tooltipParts.push(`User: ${userName} #${stats.id || fahConfig.userName}`);
+			tooltipParts.push(`Score: ${userScore.toLocaleString()}`);
 			tooltipParts.push(`Rank: ${userRank.toLocaleString()}`);
-
-			if (selectedTeam) {
-				tooltipParts.push(`Team Contribution: ${selectedTeam.score.toLocaleString()}`);
-				tooltipParts.push(`Team Total: ${selectedTeam.tscore.toLocaleString()}`);
-			}
-
+			tooltipParts.push(`Work Units: ${userWus.toLocaleString()}`);
 			if (stats.active_50 !== undefined) {
 				tooltipParts.push(`Active (50 days): ${stats.active_50}`);
 			}
@@ -228,8 +213,16 @@ export function activate(context: vscode.ExtensionContext) {
 				tooltipParts.push(`Active (7 days): ${stats.active_7}`);
 			}
 
-			if (fahConfig.passkey) {
-				tooltipParts.push(`Passkey: ${fahConfig.passkey.substring(0, 4)}****`);
+			// Team Stats section (only if team is selected)
+			if (selectedTeam) {
+				tooltipParts.push("");
+				tooltipParts.push("Team Stats:");
+				tooltipParts.push(`Team: ${selectedTeam.name} #${selectedTeam.team}`);
+				tooltipParts.push(`Score: ${selectedTeam.tscore.toLocaleString()}`);
+				tooltipParts.push(`Rank: ${selectedTeam.trank.toLocaleString()}`);
+				tooltipParts.push(`Work Units: ${selectedTeam.twus.toLocaleString()}`);
+				tooltipParts.push(`Contributions: ${selectedTeam.score.toLocaleString()}`);
+				tooltipParts.push(`Contributed WUs: ${selectedTeam.wus.toLocaleString()}`);
 			}
 
 			// Status bar text
