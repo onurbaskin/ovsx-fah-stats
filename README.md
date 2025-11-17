@@ -34,7 +34,7 @@ Add to your `settings.json`:
 
 ```json
 {
-  "fahStats.userName": "757802389",           // Required: Your Folding@Home user ID
+  "fahStats.userName": "123456789",           // Required: Your Folding@Home user ID
   "fahStats.teamName": "team-name",           // Optional: Preferred team (auto-selects if omitted)
   "fahStats.passkey": "your-passkey-here",   // Optional: Your passkey
   "fahStats.refreshInterval": 300             // Optional: Refresh interval in seconds (default: 300)

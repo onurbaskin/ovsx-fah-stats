@@ -86,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
 									? errorData.error
 									: "Bad request - invalid user ID format";
 						throw new Error(
-							`Invalid request: ${errorMsg}. Please verify your user ID is a valid numeric value (e.g., 757802389).`,
+							`Invalid request: ${errorMsg}. Please verify your user ID is a valid numeric value (e.g., 123456789).`,
 						);
 					} else if (error.response?.status === 404) {
 						const errorMsg =
@@ -174,7 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (!/^\d+$/.test(userId)) {
 				statusBarItem.text = "$(error) FAH: Invalid user ID";
 				statusBarItem.tooltip =
-					"User ID must be numeric (e.g., 757802389). Please update your configuration.";
+					"User ID must be numeric (e.g., 123456789). Please update your configuration.";
 				statusBarItem.command = "fah-stats.welcome";
 				return;
 			}

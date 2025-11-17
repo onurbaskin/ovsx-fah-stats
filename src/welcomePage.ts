@@ -249,7 +249,7 @@ export class WelcomePage {
 			<form id="configForm">
 				<div class="form-group">
 					<label for="userName">User ID <span class="required">*</span></label>
-					<input type="text" id="userName" name="userName" value="${WelcomePage.escapeHtml(config.userName)}" placeholder="Your Folding@Home user ID (e.g., 757802389)" required>
+					<input type="text" id="userName" name="userName" value="${WelcomePage.escapeHtml(config.userName)}" placeholder="Your Folding@Home user ID (e.g., 123456789)" required>
 					<div class="help-text">Required: Your Folding@Home numeric user ID (used to fetch statistics from the API)</div>
 					<div class="error" id="userNameError">User ID is required</div>
 				</div>
