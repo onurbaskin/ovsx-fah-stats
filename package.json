@@ -18,7 +18,8 @@
 		"vsce": "^2.15.0"
 	},
 	"dependencies": {
-		"axios": "^1.13.2"
+		"axios": "^1.13.2",
+		"dayjs": "^1.11.19"
 	},
 	"activationEvents": [
 		"onStartupFinished"
@@ -77,6 +78,11 @@
 					"default": 300,
 					"description": "Refresh interval in seconds (default: 300 = 5 minutes)",
 					"minimum": 10
+				},
+				"fahStats.showLastWork": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show last recorded work time in the status bar"
 				}
 			}
 		}

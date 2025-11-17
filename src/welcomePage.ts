@@ -32,6 +32,7 @@ export class WelcomePage {
 			teamName: config.get<string>("teamName", ""),
 			passkey: config.get<string>("passkey", ""),
 			refreshInterval: config.get<number>("refreshInterval", 300),
+			showLastWork: config.get<boolean>("showLastWork", true),
 		};
 
 		panel.webview.html = WelcomePage.getWebviewContent(currentConfig);
@@ -70,12 +71,14 @@ export class WelcomePage {
 		teamName: string;
 		passkey: string;
 		refreshInterval: number;
+		showLastWork: boolean;
 	}) {
 		const config = vscode.workspace.getConfiguration("fahStats");
 		await config.update("userName", data.userName, true);
 		await config.update("teamName", data.teamName, true);
 		await config.update("passkey", data.passkey, true);
 		await config.update("refreshInterval", data.refreshInterval, true);
+		await config.update("showLastWork", data.showLastWork, true);
 	}
 
 	private static getWebviewContent(config: {
@@ -83,6 +86,7 @@ export class WelcomePage {
 		teamName: string;
 		passkey: string;
 		refreshInterval: number;
+		showLastWork: boolean;
 	}): string {
 		return `<!DOCTYPE html>
 <html lang="en">
@@ -167,6 +171,21 @@ export class WelcomePage {
 		input[type="number"]:focus {
 			outline: none;
 			border-color: var(--vscode-focusBorder);
+		}
+		input[type="checkbox"] {
+			width: 16px;
+			height: 16px;
+			cursor: pointer;
+			accent-color: var(--vscode-focusBorder);
+		}
+		.checkbox-group {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.checkbox-group label {
+			margin-bottom: 0;
+			cursor: pointer;
 		}
 		.help-text {
 			font-size: 12px;
@@ -276,6 +295,14 @@ export class WelcomePage {
 					<div class="error" id="intervalError">Interval must be at least 10 seconds</div>
 				</div>
 
+				<div class="form-group">
+					<div class="checkbox-group">
+						<input type="checkbox" id="showLastWork" name="showLastWork" ${config.showLastWork ? "checked" : ""}>
+						<label for="showLastWork">Show last recorded work time in status bar</label>
+					</div>
+					<div class="help-text">Display when your last work unit was completed (e.g., "last work 12 minutes ago")</div>
+				</div>
+
 				<div class="button-group">
 					<button type="button" class="secondary" id="cancelBtn">Cancel</button>
 					<button type="submit" class="primary">Save Configuration</button>
@@ -318,7 +345,8 @@ export class WelcomePage {
 				userName: userName,
 				teamName: document.getElementById('teamName').value.trim(),
 				passkey: document.getElementById('passkey').value.trim(),
-				refreshInterval: interval
+				refreshInterval: interval,
+				showLastWork: document.getElementById('showLastWork').checked
 			};
 
 			vscode.postMessage({

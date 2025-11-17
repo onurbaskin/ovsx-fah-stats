@@ -1,6 +1,10 @@
 import axios from "axios";
 import * as vscode from "vscode";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime.js";
 import { WelcomePage } from "./welcomePage";
+
+dayjs.extend(relativeTime);
 
 interface FAHTeam {
 	team: number;
@@ -125,6 +129,7 @@ export function activate(context: vscode.ExtensionContext) {
 			teamName: config.get<string>("teamName", ""), // Preferred team name to track
 			passkey: config.get<string>("passkey", ""),
 			refreshInterval: config.get<number>("refreshInterval", 300), // Default 5 minutes in seconds
+			showLastWork: config.get<boolean>("showLastWork", true), // Show last work time in status bar
 		};
 	};
 
@@ -226,6 +231,13 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			// Status bar text
+			const lastWorkFormatted = fahConfig.showLastWork
+				? formatRelativeTime(stats.last)
+				: null;
+			const lastWorkText = lastWorkFormatted
+				? `${lastWorkFormatted} • `
+				: "";
+
 			const teamRankFormatted = selectedTeam
 				? formatNumber(selectedTeam.trank)
 				: "";
@@ -235,7 +247,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const teamInfo = selectedTeam
 				? ` | ${selectedTeam.name} #${teamRankFormatted} • ${teamScoreFormatted} pts`
 				: "";
-			statusBarItem.text = `FAH • ${userName}: #${rankFormatted} • ${scoreFormatted} pts${teamInfo}`;
+			statusBarItem.text = `FAH • ${lastWorkText}${userName}: #${rankFormatted} • ${scoreFormatted} pts${teamInfo}`;
 			statusBarItem.tooltip = tooltipParts.join("\n");
 		} catch (error) {
 			console.error("Error fetching FAH stats:", error);
@@ -274,6 +286,25 @@ export function activate(context: vscode.ExtensionContext) {
 			return `${(num / 1000).toFixed(1)}K`;
 		}
 		return num.toString();
+	};
+
+	// Format relative time (e.g., "12 minutes ago", "2 hours ago", "3 days ago")
+	const formatRelativeTime = (dateString: string | undefined): string | null => {
+		if (!dateString) {
+			return null;
+		}
+
+		try {
+			// Parse the date string "2025-11-17 16:14:37"
+			const date = dayjs(dateString);
+			if (!date.isValid()) {
+				return null;
+			}
+			return date.fromNow();
+		} catch (error) {
+			console.error("Error formatting relative time:", error);
+			return null;
+		}
 	};
 
 	// Register refresh command
