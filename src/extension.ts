@@ -205,11 +205,21 @@ export function activate(context: vscode.ExtensionContext) {
 			// Build tooltip with configured values and fetched stats
 			const tooltipParts: string[] = [];
 
+			// Calculate percentile if total users is available
+			const totalUsers = stats.users;
+			const percentile =
+				totalUsers && userRank > 0
+					? ((userRank / totalUsers) * 100).toFixed(2)
+					: null;
+			const rankDisplay = percentile
+				? `Rank: ${userRank.toLocaleString()} (Top ${percentile}%)`
+				: `Rank: ${userRank.toLocaleString()}`;
+
 			// User Stats section
 			tooltipParts.push("User Stats:");
 			tooltipParts.push(`User: ${userName} #${stats.id || fahConfig.userName}`);
 			tooltipParts.push(`Score: ${userScore.toLocaleString()}`);
-			tooltipParts.push(`Rank: ${userRank.toLocaleString()}`);
+			tooltipParts.push(rankDisplay);
 			tooltipParts.push(`Work Units: ${userWus.toLocaleString()}`);
 			if (stats.active_50 !== undefined) {
 				tooltipParts.push(`Active (50 days): ${stats.active_50}`);
