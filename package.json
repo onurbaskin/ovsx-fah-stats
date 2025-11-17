@@ -97,7 +97,7 @@
 	"publisher": "onurbaskin",
 	"scripts": {
 		"compile": "node esbuild.config.js --production",
-		"package": "bun run compile && bun vsce package",
+		"package": "bun run compile && mkdir -p packages && bun vsce package --out packages/",
 		"publish:ovsx": "bun run compile && bun ovsx publish --pat \"${OVSX_PAT}\"",
 		"publish:vscode": "bun run compile && bun vsce publish"
 	}

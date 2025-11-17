@@ -418,8 +418,9 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# Custom files
+# Custom files
 PUBLISHING.md
 PRE_PUBLISH_CHECKLIST.md
+packages/
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,linux,windows,visualstudiocode,git,python,node

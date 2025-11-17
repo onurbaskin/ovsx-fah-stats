@@ -19,4 +19,5 @@ PUBLISHING.md
 .git/**
 .gitignore
 .eslintrc.json
+packages/**
 
