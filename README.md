@@ -1,7 +1,7 @@
 # Folding@Home Stats
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![VS Code Version](https://img.shields.io/badge/VS%20Code-1.106.0+-blue.svg)](https://code.visualstudio.com/)
+[![VS Code Version](https://img.shields.io/badge/VS%20Code-1.99.0+-blue.svg)](https://code.visualstudio.com/)
 
 A VS Code extension that displays your [Folding@Home](https://foldingathome.org/) statistics directly in the status bar. Track your contributions to scientific research while you code!
 
@@ -11,9 +11,11 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 - Team tracking (auto-selects largest contribution or specify preferred team)
 - Auto-refresh (configurable, default: 5 minutes)
 - Interactive welcome page for setup
-- Detailed tooltips on hover
+- Detailed tooltips on hover (markdown or plain text)
 - Manual refresh via command palette or status bar click
 - Copy stats to clipboard, open profile, and pause updates commands
+- Status bar template customization
+- Cached stats shown during transient errors with a stale indicator
 
 ## Screenshots
 
@@ -27,7 +29,7 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 
 ## Setup
 
-On first install, a welcome page opens automatically. Enter your Folding@Home user ID to get started. Optional passkeys are stored securely in your system keychain via the welcome page.
+On first install, a welcome page opens automatically. Enter your Folding@Home user ID to get started. Optional passkeys are stored securely in your system keychain via the welcome page. You can find your user ID on the Folding@Home stats site by searching for your donor name.
 
 ### Manual Setup
 
@@ -40,7 +42,7 @@ Add to your `settings.json`:
   "fahStats.refreshInterval": 300,            // Optional: Refresh interval in seconds (default: 300)
   "fahStats.paused": false,                   // Optional: Pause automatic updates (global)
   "fahStats.showLastWork": true,              // Optional: Show last recorded work time
-  "fahStats.showTeamInfo": true,              // Optional: Show team stats in tooltip/status bar
+  "fahStats.showTeamInfo": true,              // Optional: Show team stats in tooltip/status bar (disable to hide team info)
   "fahStats.compactStatusBar": false,         // Optional: Shorter status bar text
   "fahStats.statusBarTemplate": "",           // Optional: Template with {user}, {rank}, {score}, {team}, {teamRank}, {teamScore}, {lastWork}, {updatedAt}
   "fahStats.tooltipFormat": "markdown"        // Optional: Tooltip format ("markdown" or "plain")
@@ -49,7 +51,7 @@ Add to your `settings.json`:
 
 ## Usage
 
-Statistics appear automatically in the status bar. Hover for tooltips. Click the status bar item or use Command Palette (`Cmd+Shift+P`) to refresh.
+Statistics appear automatically in the status bar. Hover for tooltips. Click the status bar item or use Command Palette (`Cmd+Shift+P`) to refresh. If the API is temporarily unavailable, the last successful snapshot is shown as stale until the next refresh.
 
 Available commands:
 - `Folding@Home Stats: Refresh Folding@Home Stats`
