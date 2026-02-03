@@ -26,7 +26,7 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 
 ## Setup
 
-On first install, a welcome page opens automatically. Enter your Folding@Home user ID to get started.
+On first install, a welcome page opens automatically. Enter your Folding@Home user ID to get started. Optional passkeys are stored securely in your system keychain via the welcome page.
 
 ### Manual Setup
 
@@ -34,10 +34,12 @@ Add to your `settings.json`:
 
 ```json
 {
-  "fahStats.userName": "123456789",           // Required: Your Folding@Home user ID
+  "fahStats.userId": "123456789",             // Required: Your Folding@Home user ID
   "fahStats.teamName": "team-name",           // Optional: Preferred team (auto-selects if omitted)
-  "fahStats.passkey": "your-passkey-here",   // Optional: Your passkey
-  "fahStats.refreshInterval": 300             // Optional: Refresh interval in seconds (default: 300)
+  "fahStats.refreshInterval": 300,            // Optional: Refresh interval in seconds (default: 300)
+  "fahStats.showLastWork": true,              // Optional: Show last recorded work time
+  "fahStats.compactStatusBar": false,         // Optional: Shorter status bar text
+  "fahStats.debugLogging": false              // Optional: Enable debug logging in Output panel
 }
 ```
 
@@ -50,7 +52,7 @@ Statistics appear automatically in the status bar. Hover for tooltips. Click the
 ### Prerequisites
 
 - VS Code 1.99.0+
-- Bun (or Node.js 18+ with npm)
+- Bun
 
 ### Setup
 

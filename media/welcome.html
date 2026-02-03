@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src __CSP_SOURCE__ https:; style-src __CSP_SOURCE__ 'unsafe-inline'; script-src 'nonce-__NONCE__';">
+	<title>Folding@Home Stats - Welcome</title>
+	<style>
+		* {
+			box-sizing: border-box;
+		}
+		body {
+			font-family: var(--vscode-font-family);
+			padding: 0;
+			margin: 0;
+			color: var(--vscode-foreground);
+			background-color: var(--vscode-editor-background);
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			min-height: 100vh;
+		}
+		.container {
+			width: 100%;
+			max-width: 640px;
+			padding: 40px;
+		}
+		.header {
+			margin-bottom: 32px;
+			text-align: center;
+		}
+		.header h1 {
+			margin: 0 0 12px 0;
+			font-size: 24px;
+			font-weight: 600;
+			color: var(--vscode-foreground);
+		}
+		.header p {
+			margin: 0;
+			font-size: 13px;
+			color: var(--vscode-descriptionForeground);
+			line-height: 1.5;
+		}
+		.form-container {
+			background-color: var(--vscode-input-background);
+			border: 1px solid var(--vscode-input-border);
+			border-radius: 4px;
+			padding: 24px;
+		}
+		.form-group {
+			margin-bottom: 20px;
+		}
+		.form-group:last-of-type {
+			margin-bottom: 0;
+		}
+		label {
+			display: block;
+			margin-bottom: 6px;
+			font-weight: 600;
+			font-size: 13px;
+			color: var(--vscode-foreground);
+		}
+		.required {
+			color: var(--vscode-errorForeground);
+			margin-left: 2px;
+		}
+		input[type="text"],
+		input[type="password"],
+		input[type="number"] {
+			width: 100%;
+			padding: 6px 8px;
+			border: 1px solid var(--vscode-input-border);
+			background-color: var(--vscode-input-background);
+			color: var(--vscode-input-foreground);
+			font-family: var(--vscode-font-family);
+			font-size: 13px;
+			border-radius: 2px;
+			transition: border-color 0.2s;
+		}
+		input[type="text"]:focus,
+		input[type="password"]:focus,
+		input[type="number"]:focus {
+			outline: none;
+			border-color: var(--vscode-focusBorder);
+		}
+		input[type="checkbox"] {
+			width: 16px;
+			height: 16px;
+			cursor: pointer;
+			accent-color: var(--vscode-focusBorder);
+		}
+		.checkbox-group {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.checkbox-group label {
+			margin-bottom: 0;
+			cursor: pointer;
+		}
+		.help-text {
+			font-size: 12px;
+			color: var(--vscode-descriptionForeground);
+			margin-top: 4px;
+			line-height: 1.4;
+		}
+		.button-group {
+			display: flex;
+			gap: 8px;
+			margin-top: 24px;
+			justify-content: flex-end;
+		}
+		button {
+			padding: 6px 14px;
+			border: none;
+			cursor: pointer;
+			font-family: var(--vscode-font-family);
+			font-size: 13px;
+			border-radius: 2px;
+			transition: background-color 0.2s;
+		}
+		button.primary {
+			background-color: var(--vscode-button-background);
+			color: var(--vscode-button-foreground);
+		}
+		button.primary:hover {
+			background-color: var(--vscode-button-hoverBackground);
+		}
+		button.secondary {
+			background-color: transparent;
+			color: var(--vscode-foreground);
+		}
+		button.secondary:hover {
+			background-color: var(--vscode-button-secondaryHoverBackground);
+		}
+		.error {
+			color: var(--vscode-errorForeground);
+			font-size: 12px;
+			margin-top: 4px;
+			display: none;
+		}
+		.error.show {
+			display: block;
+		}
+		.input-with-suffix {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.input-with-suffix input {
+			flex: 1;
+		}
+		.suffix {
+			font-size: 12px;
+			color: var(--vscode-descriptionForeground);
+		}
+		.divider {
+			margin: 24px 0;
+			border: 0;
+			border-top: 1px solid var(--vscode-input-border);
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<h1>Welcome to Folding@Home Stats</h1>
+			<p>Enter your Folding@Home user ID to display statistics in the status bar.</p>
+		</div>
+
+		<div class="form-container">
+			<form id="configForm">
+				<div class="form-group">
+					<label for="userId">User ID <span class="required">*</span></label>
+					<input type="text" id="userId" name="userId" placeholder="123456789">
+					<div class="help-text">Your Folding@Home numeric user ID (not username)</div>
+					<div id="userIdError" class="error">Please enter a valid numeric user ID</div>
+				</div>
+
+				<div class="form-group">
+					<label for="teamName">Preferred Team (Optional)</label>
+					<input type="text" id="teamName" name="teamName" placeholder="Team name">
+					<div class="help-text">If left blank, the team with your largest contribution will be selected</div>
+				</div>
+
+				<div class="form-group">
+					<label for="passkey">Passkey (Optional)</label>
+					<input type="password" id="passkey" name="passkey" placeholder="Your passkey">
+					<div id="passkeyHelp" class="help-text">Optional passkey stored securely in your system keychain</div>
+				</div>
+
+				<hr class="divider">
+
+				<div class="form-group">
+					<label for="refreshInterval">Refresh Interval</label>
+					<div class="input-with-suffix">
+						<input type="number" id="refreshInterval" name="refreshInterval" min="10">
+						<span class="suffix">seconds</span>
+					</div>
+					<div class="help-text">How often to refresh stats (minimum 10 seconds)</div>
+					<div id="refreshError" class="error">Refresh interval must be 10 seconds or more</div>
+				</div>
+
+				<div class="form-group">
+					<div class="checkbox-group">
+						<input type="checkbox" id="showLastWork" name="showLastWork">
+						<label for="showLastWork">Show last recorded work time</label>
+					</div>
+					<div class="help-text">Display how long ago your last work unit was completed</div>
+				</div>
+
+				<div class="form-group">
+					<div class="checkbox-group">
+						<input type="checkbox" id="compactStatusBar" name="compactStatusBar">
+						<label for="compactStatusBar">Compact status bar layout</label>
+					</div>
+					<div class="help-text">Show a shorter status bar entry to reduce truncation</div>
+				</div>
+
+				<div class="form-group">
+					<div class="checkbox-group">
+						<input type="checkbox" id="debugLogging" name="debugLogging">
+						<label for="debugLogging">Enable debug logging</label>
+					</div>
+					<div class="help-text">Log API responses and errors to the Output panel</div>
+				</div>
+
+				<div class="button-group">
+					<button type="button" class="secondary" id="cancelBtn">Cancel</button>
+					<button type="submit" class="primary">Save Configuration</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<script nonce="__NONCE__">
+		const vscode = acquireVsCodeApi();
+		const initialConfig = __CONFIG__;
+
+		const form = document.getElementById("configForm");
+		const userIdInput = document.getElementById("userId");
+		const userIdError = document.getElementById("userIdError");
+		const passkeyHelp = document.getElementById("passkeyHelp");
+		const refreshIntervalInput = document.getElementById("refreshInterval");
+		const refreshError = document.getElementById("refreshError");
+		const cancelBtn = document.getElementById("cancelBtn");
+
+		userIdInput.value = initialConfig.userId || "";
+		document.getElementById("teamName").value = initialConfig.teamName || "";
+		refreshIntervalInput.value = String(initialConfig.refreshInterval ?? 300);
+		document.getElementById("showLastWork").checked = Boolean(initialConfig.showLastWork);
+		document.getElementById("compactStatusBar").checked = Boolean(initialConfig.compactStatusBar);
+		document.getElementById("debugLogging").checked = Boolean(initialConfig.debugLogging);
+
+		if (initialConfig.passkeyStored) {
+			passkeyHelp.textContent = "Passkey stored securely. Leave blank to clear.";
+		}
+
+		form.addEventListener("submit", (event) => {
+			event.preventDefault();
+
+			const userId = userIdInput.value.trim();
+			const isValidUserId = /^\d+$/.test(userId);
+			if (!isValidUserId) {
+				userIdError.classList.add("show");
+				userIdInput.focus();
+				return;
+			}
+
+			const refreshInterval = Number.parseInt(refreshIntervalInput.value, 10);
+			if (Number.isNaN(refreshInterval) || refreshInterval < 10) {
+				refreshError.classList.add("show");
+				refreshIntervalInput.focus();
+				return;
+			}
+
+			userIdError.classList.remove("show");
+			refreshError.classList.remove("show");
+
+			const data = {
+				userId,
+				teamName: document.getElementById("teamName").value.trim(),
+				passkey: document.getElementById("passkey").value.trim(),
+				refreshInterval,
+				showLastWork: document.getElementById("showLastWork").checked,
+				compactStatusBar: document.getElementById("compactStatusBar").checked,
+				debugLogging: document.getElementById("debugLogging").checked,
+			};
+
+			vscode.postMessage({
+				command: "saveConfig",
+				data,
+			});
+		});
+
+		cancelBtn.addEventListener("click", () => {
+			vscode.postMessage({ command: "cancel" });
+		});
+
+		userIdInput.addEventListener("input", () => {
+			userIdError.classList.remove("show");
+		});
+
+		refreshIntervalInput.addEventListener("input", () => {
+			refreshError.classList.remove("show");
+		});
+	</script>
+</body>
+</html>

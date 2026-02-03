@@ -45,6 +45,21 @@
 				"category": "Folding@Home Stats"
 			},
 			{
+				"command": "fah-stats.copyStats",
+				"title": "Copy Folding@Home Stats to Clipboard",
+				"category": "Folding@Home Stats"
+			},
+			{
+				"command": "fah-stats.openProfile",
+				"title": "Open Folding@Home Profile",
+				"category": "Folding@Home Stats"
+			},
+			{
+				"command": "fah-stats.pauseUpdates",
+				"title": "Toggle Pause Updates",
+				"category": "Folding@Home Stats"
+			},
+			{
 				"command": "fah-stats.welcome",
 				"title": "Open Welcome Page",
 				"category": "Folding@Home Stats"
@@ -58,7 +73,7 @@
 		"configuration": {
 			"title": "Folding@Home Stats",
 			"properties": {
-				"fahStats.userName": {
+				"fahStats.userId": {
 					"type": "string",
 					"default": "",
 					"description": "Your Folding@Home user ID (numeric ID, required for fetching statistics)"
@@ -68,21 +83,42 @@
 					"default": "",
 					"description": "Preferred team name to track (optional - if not specified, the team with largest contribution will be selected)"
 				},
-				"fahStats.passkey": {
-					"type": "string",
-					"default": "",
-					"description": "Your Folding@Home passkey"
-				},
 				"fahStats.refreshInterval": {
 					"type": "number",
 					"default": 300,
 					"description": "Refresh interval in seconds (default: 300 = 5 minutes)",
 					"minimum": 10
 				},
+				"fahStats.paused": {
+					"type": "boolean",
+					"default": false,
+					"description": "Pause automatic updates (global)"
+				},
 				"fahStats.showLastWork": {
 					"type": "boolean",
 					"default": true,
 					"description": "Show last recorded work time in the status bar"
+				},
+				"fahStats.showTeamInfo": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show team statistics in the status bar and tooltip"
+				},
+				"fahStats.compactStatusBar": {
+					"type": "boolean",
+					"default": false,
+					"description": "Show a shorter status bar entry"
+				},
+				"fahStats.statusBarTemplate": {
+					"type": "string",
+					"default": "",
+					"description": "Custom status bar template. Available variables: {user}, {rank}, {score}, {team}, {teamRank}, {teamScore}, {lastWork}, {updatedAt}"
+				},
+				"fahStats.tooltipFormat": {
+					"type": "string",
+					"default": "markdown",
+					"enum": ["plain", "markdown"],
+					"description": "Tooltip format style"
 				}
 			}
 		}
@@ -97,8 +133,16 @@
 	"publisher": "onurbaskin",
 	"scripts": {
 		"compile": "node esbuild.config.js --production",
+		"test": "bun test",
 		"package": "bun run compile && mkdir -p packages && bun vsce package --out packages/",
 		"publish:ovsx": "bun run compile && bun ovsx publish --pat \"${OVSX_PAT}\"",
 		"publish:vscode": "bun run compile && bun vsce publish"
-	}
+	},
+	"files": [
+		"out/**",
+		"media/**",
+		"package.json",
+		"README.md",
+		"LICENSE"
+	]
 }

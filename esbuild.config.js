@@ -9,7 +9,7 @@ const buildOptions = {
 	outfile: "out/extension.js",
 	external: ["vscode"], // vscode is provided by the extension host
 	format: "cjs",
-	target: "node18",
+	target: "node20",
 	platform: "node",
 	sourcemap: !isProduction,
 	minify: isProduction,
@@ -26,4 +26,3 @@ if (isWatch) {
 		.build(buildOptions)
 		.catch(() => process.exit(1));
 }
-
