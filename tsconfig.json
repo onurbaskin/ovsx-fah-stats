@@ -4,6 +4,7 @@
 		"target": "ES2020",
 		"outDir": "out",
 		"lib": ["ES2020"],
+		"types": ["bun-types"],
 		"sourceMap": true,
 		"rootDir": "src",
 		"strict": true,

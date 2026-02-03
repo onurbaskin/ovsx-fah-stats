@@ -1,10 +1,11 @@
-import axios from "axios";
 import * as vscode from "vscode";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime.js";
+import {
+	formatNumber,
+	formatRelativeTime,
+	renderStatusBarTemplate,
+	type TemplateContext,
+} from "./formatting";
 import { WelcomePage } from "./welcomePage";
-
-dayjs.extend(relativeTime);
 
 interface FAHTeam {
 	team: number;
@@ -36,10 +37,36 @@ interface FAHStats {
 	teams?: FAHTeam[];
 }
 
-export function activate(context: vscode.ExtensionContext) {
-	console.log("Folding@Home Stats extension is now active");
+interface FAHTeamSnapshot {
+	id: number;
+	name: string;
+	rank: number;
+	score: number;
+	workUnits: number;
+	contributions: number;
+	contributedWus: number;
+}
 
-	// Create status bar item
+interface FAHStatsSnapshot {
+	userId: string;
+	userName: string;
+	userScore: number;
+	userWus: number;
+	userRank: number;
+	userActive50?: number;
+	userActive7?: number;
+	lastWork?: string;
+	totalUsers?: number;
+	team?: FAHTeamSnapshot;
+}
+
+const USER_ID_REGEX = /^\d+$/;
+
+export function activate(context: vscode.ExtensionContext) {
+	const outputChannel = vscode.window.createOutputChannel(
+		"Folding@Home Stats",
+	);
+
 	const statusBarItem = vscode.window.createStatusBarItem(
 		vscode.StatusBarAlignment.Right,
 		100,
@@ -48,92 +75,40 @@ export function activate(context: vscode.ExtensionContext) {
 	statusBarItem.tooltip = "Folding@Home Statistics";
 	statusBarItem.show();
 
-	// Function to fetch stats from Folding@Home API
-	const fetchFAHStats = (userId: string): Promise<FAHStats> => {
-		// Validate user ID is numeric
-		if (!/^\d+$/.test(userId.trim())) {
-			throw new Error(
-				"Invalid user ID format. User ID must be a numeric value.",
-			);
+	let isRefreshing = false;
+	let isInitialLoad = true;
+	let lastSnapshot: FAHStatsSnapshot | null = null;
+	let lastUpdatedAtMs: number | null = null;
+	let lastTooltipHash: string | null = null;
+	let lastTooltip: vscode.MarkdownString | string | null = null;
+	let failureCount = 0;
+	let intervalId: NodeJS.Timeout | undefined;
+	let currentAbort: AbortController | undefined;
+	const clearIntervalIfSet = () => {
+		if (intervalId) {
+			clearInterval(intervalId);
+			intervalId = undefined;
 		}
-
-		// Build URL - using /uid/{id} endpoint
-		const url = `https://api2.foldingathome.org/uid/${userId.trim()}`;
-
-		console.log(`Fetching FAH stats from: ${url}`);
-
-		return axios
-			.get<FAHStats>(url, {
-				timeout: 10000,
-				headers: {
-					"User-Agent": "vscode-fah-stats-extension",
-					Accept: "application/json",
-				},
-			})
-			.then((response) => {
-				console.log("Folding@Home API Response:");
-				console.log(JSON.stringify(response.data, null, 2));
-				return response.data;
-			})
-			.catch((error) => {
-				if (axios.isAxiosError(error) && error.response) {
-					console.error("Folding@Home API Error Response:");
-					console.error(JSON.stringify(error.response.data, null, 2));
-				}
-				if (axios.isAxiosError(error)) {
-					if (error.response?.status === 400) {
-						const errorData = error.response.data;
-						const errorMsg =
-							typeof errorData === "string" && errorData
-								? errorData
-								: typeof errorData === "object" && errorData?.error
-									? errorData.error
-									: "Bad request - invalid user ID format";
-						throw new Error(
-							`Invalid request: ${errorMsg}. Please verify your user ID is a valid numeric value (e.g., 123456789).`,
-						);
-					} else if (error.response?.status === 404) {
-						const errorMsg =
-							error.response?.data?.error || "User not found";
-						throw new Error(
-							`User not found: ${errorMsg}. Please verify your user ID is correct.`,
-						);
-					} else if (error.code === "ECONNABORTED") {
-						throw new Error("Request timeout: API did not respond in time");
-					} else if (error.response) {
-						const errorData = error.response.data;
-						const errorMsg =
-							typeof errorData === "string" && errorData
-								? errorData
-								: typeof errorData === "object" && errorData?.error
-									? errorData.error
-									: `HTTP ${error.response.status}`;
-						throw new Error(errorMsg);
-					} else {
-						throw new Error(
-							`Network error: ${error.message}. Please check your internet connection.`,
-						);
-					}
-				}
-				throw error instanceof Error
-					? error
-					: new Error("Unknown error occurred");
-			});
 	};
 
-	// Function to get all configuration values
 	const getFAHConfig = () => {
 		const config = vscode.workspace.getConfiguration("fahStats");
 		return {
-			userName: config.get<string>("userName", ""),
-			teamName: config.get<string>("teamName", ""), // Preferred team name to track
-			passkey: config.get<string>("passkey", ""),
-			refreshInterval: config.get<number>("refreshInterval", 300), // Default 5 minutes in seconds
-			showLastWork: config.get<boolean>("showLastWork", true), // Show last work time in status bar
+			userId: config.get<string>("userId", ""),
+			teamName: config.get<string>("teamName", ""),
+			refreshInterval: config.get<number>("refreshInterval", 300),
+			paused: config.get<boolean>("paused", false),
+			showLastWork: config.get<boolean>("showLastWork", true),
+			showTeamInfo: config.get<boolean>("showTeamInfo", true),
+			compactStatusBar: config.get<boolean>("compactStatusBar", false),
+			statusBarTemplate: config.get<string>("statusBarTemplate", ""),
+			tooltipFormat: config.get<"plain" | "markdown">(
+				"tooltipFormat",
+				"markdown",
+			),
 		};
 	};
 
-	// Function to select team from stats (largest contribution by default, or preferred team)
 	const selectTeam = (
 		teams: FAHTeam[] | undefined,
 		preferredTeamName?: string,
@@ -142,254 +117,616 @@ export function activate(context: vscode.ExtensionContext) {
 			return undefined;
 		}
 
-		// If user specified a preferred team name, try to find it
 		if (preferredTeamName) {
 			const preferredTeam = teams.find(
-				(t) =>
-					t.name.toLowerCase() === preferredTeamName.toLowerCase(),
+				(t) => t.name.toLowerCase() === preferredTeamName.toLowerCase(),
 			);
 			if (preferredTeam) {
 				return preferredTeam;
 			}
 		}
 
-		// Otherwise, return the team with the largest contribution (score)
 		return teams.reduce((max, team) =>
 			team.score > (max?.score ?? 0) ? team : max,
 		);
 	};
 
-	// Function to fetch and update stats
-	const updateStats = async () => {
-		try {
-			statusBarItem.text = "$(sync~spin) Loading FAH Stats...";
+	const normalizeStats = (
+		stats: FAHStats,
+		config: ReturnType<typeof getFAHConfig>,
+	): FAHStatsSnapshot => {
+		const userId = String(stats.id ?? config.userId);
+		const userName = stats.name || config.userId;
+		const selectedTeam = config.showTeamInfo
+			? selectTeam(stats.teams, config.teamName || undefined)
+			: undefined;
 
-			// Get all configuration values
-			const fahConfig = getFAHConfig();
+		return {
+			userId,
+			userName,
+			userScore: stats.score ?? 0,
+			userWus: stats.wus ?? 0,
+			userRank: stats.rank ?? 0,
+			userActive50: stats.active_50,
+			userActive7: stats.active_7,
+			lastWork: stats.last,
+			totalUsers: stats.users,
+			team: selectedTeam
+				? {
+					id: selectedTeam.team,
+					name: selectedTeam.name,
+					rank: selectedTeam.trank,
+					score: selectedTeam.tscore,
+					workUnits: selectedTeam.twus,
+					contributions: selectedTeam.score,
+					contributedWus: selectedTeam.wus,
+				}
+				: undefined,
+		};
+	};
 
-			if (!fahConfig.userName) {
-				statusBarItem.text = "$(error) FAH: Configure user ID";
-				statusBarItem.tooltip =
-					"Please configure fahStats.userName (user ID) in settings";
-				return;
-			}
+	const formatUpdatedAtRelative = (updatedAtMs: number | null): string => {
+		if (!updatedAtMs) {
+			return "Unknown";
+		}
+		const deltaMs = Math.max(0, Date.now() - updatedAtMs);
+		const seconds = Math.floor(deltaMs / 1000);
+		if (seconds < 60) {
+			return "Just now";
+		}
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) {
+			return `${minutes}m ago`;
+		}
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) {
+			return `${hours}h ago`;
+		}
+		return `${Math.floor(hours / 24)}d ago`;
+	};
 
-			// Validate user ID format before making request
-			const userId = fahConfig.userName.trim();
-			if (!/^\d+$/.test(userId)) {
-				statusBarItem.text = "$(error) FAH: Invalid user ID";
-				statusBarItem.tooltip =
-					"User ID must be numeric (e.g., 123456789). Please update your configuration.";
-				statusBarItem.command = "fah-stats.welcome";
-				return;
-			}
+	const escapeMarkdownTable = (value: string): string =>
+		value.replace(/\|/g, "\\|").replace(/\n/g, " ");
 
-			// Fetch stats from Folding@Home API using user ID
-			const stats = await fetchFAHStats(userId);
-
-			// Extract user stats
-			const userName = stats.name || fahConfig.userName;
-			const userScore = stats.score ?? 0;
-			const userWus = stats.wus ?? 0;
-			const userRank = stats.rank ?? 0;
-
-			// Select team (preferred team or largest contribution)
-			const selectedTeam = selectTeam(
-				stats.teams,
-				fahConfig.teamName || undefined,
-			);
-
-			const scoreFormatted = formatNumber(userScore);
-			const rankFormatted = formatNumber(userRank);
-
-			// Build tooltip with configured values and fetched stats
-			const tooltipParts: string[] = [];
-
-			// Calculate percentile if total users is available
-			const totalUsers = stats.users;
-			const percentile =
-				totalUsers && userRank > 0
-					? ((userRank / totalUsers) * 100).toFixed(2)
-					: null;
-			const rankDisplay = percentile
-				? `Rank: ${userRank.toLocaleString()} (Top ${percentile}%)`
-				: `Rank: ${userRank.toLocaleString()}`;
-
-			// User Stats section
-			tooltipParts.push("User Stats:");
-			tooltipParts.push(`User: ${userName} #${stats.id || fahConfig.userName}`);
-			tooltipParts.push(`Score: ${userScore.toLocaleString()}`);
-			tooltipParts.push(rankDisplay);
-			tooltipParts.push(`Work Units: ${userWus.toLocaleString()}`);
-			if (stats.active_50 !== undefined) {
-				tooltipParts.push(`Active (50 days): ${stats.active_50}`);
-			}
-			if (stats.active_7 !== undefined) {
-				tooltipParts.push(`Active (7 days): ${stats.active_7}`);
-			}
-
-			// Team Stats section (only if team is selected)
-			if (selectedTeam) {
-				tooltipParts.push("");
-				tooltipParts.push("Team Stats:");
-				tooltipParts.push(`Team: ${selectedTeam.name} #${selectedTeam.team}`);
-				tooltipParts.push(`Score: ${selectedTeam.tscore.toLocaleString()}`);
-				tooltipParts.push(`Rank: ${selectedTeam.trank.toLocaleString()}`);
-				tooltipParts.push(`Work Units: ${selectedTeam.twus.toLocaleString()}`);
-				tooltipParts.push(`Contributions: ${selectedTeam.score.toLocaleString()}`);
-				tooltipParts.push(`Contributed WUs: ${selectedTeam.wus.toLocaleString()}`);
-			}
-
-			// Status bar text
-			const lastWorkFormatted = fahConfig.showLastWork
-				? formatRelativeTime(stats.last)
+	const getTooltip = (
+		snapshot: FAHStatsSnapshot,
+		config: ReturnType<typeof getFAHConfig>,
+		isStale: boolean,
+	) => {
+		const percentile =
+			snapshot.totalUsers && snapshot.userRank > 0
+				? ((snapshot.userRank / snapshot.totalUsers) * 100).toFixed(2)
 				: null;
-			const lastWorkText = lastWorkFormatted
-				? `${lastWorkFormatted} • `
+		const rankDisplay = percentile
+			? `${snapshot.userRank.toLocaleString()} (Top ${percentile}%)`
+			: snapshot.userRank.toLocaleString();
+		const updatedAtText = formatUpdatedAtRelative(lastUpdatedAtMs);
+		const updatedAtAbsolute = lastUpdatedAtMs
+			? new Date(lastUpdatedAtMs).toLocaleString()
+			: "Unknown";
+		const lastWorkFormatted = formatRelativeTime(snapshot.lastWork) ?? "Unknown";
+		const statusLine = isStale
+			? `Stale (last updated ${updatedAtText})`
+			: `Updated ${updatedAtText}`;
+		const team = config.showTeamInfo ? snapshot.team : undefined;
+		const hash = [
+			snapshot.userId,
+			snapshot.userName,
+			snapshot.userScore,
+			snapshot.userWus,
+			snapshot.userRank,
+			snapshot.userActive50 ?? "",
+			snapshot.userActive7 ?? "",
+			snapshot.lastWork ?? "",
+			snapshot.totalUsers ?? "",
+			config.tooltipFormat,
+			config.showTeamInfo ? "1" : "0",
+			lastUpdatedAtMs ?? "",
+			isStale ? "1" : "0",
+			team
+				? [
+						team.id,
+						team.name,
+						team.rank,
+						team.score,
+						team.workUnits,
+						team.contributions,
+						team.contributedWus,
+					].join(",")
+				: "",
+		].join("|");
+		if (lastTooltip && hash === lastTooltipHash) {
+			return lastTooltip;
+		}
+
+		if (config.tooltipFormat === "markdown") {
+			const md = new vscode.MarkdownString(undefined, true);
+			md.appendMarkdown(`**User Stats**\n\n`);
+			md.appendMarkdown(`| Field | Value |\n| --- | --- |\n`);
+			md.appendMarkdown(
+				`| User | ${escapeMarkdownTable(
+					`${snapshot.userName} #${snapshot.userId}`,
+				)} |\n`,
+			);
+			md.appendMarkdown(
+				`| Score | ${snapshot.userScore.toLocaleString()} |\n`,
+			);
+			md.appendMarkdown(`| Rank | ${rankDisplay} |\n`);
+			md.appendMarkdown(
+				`| Work Units | ${snapshot.userWus.toLocaleString()} |\n`,
+			);
+			md.appendMarkdown(`| Last Work | ${lastWorkFormatted} |\n`);
+			md.appendMarkdown(`| Last Refresh | ${updatedAtAbsolute} |\n`);
+			if (snapshot.userActive50 !== undefined) {
+				md.appendMarkdown(`| Active (50 days) | ${snapshot.userActive50} |\n`);
+			}
+			if (snapshot.userActive7 !== undefined) {
+				md.appendMarkdown(`| Active (7 days) | ${snapshot.userActive7} |\n`);
+			}
+
+			if (team) {
+				md.appendMarkdown(`\n**Team Stats**\n\n`);
+				md.appendMarkdown(`| Field | Value |\n| --- | --- |\n`);
+				md.appendMarkdown(
+					`| Team | ${escapeMarkdownTable(
+						`${team.name} #${team.id}`,
+					)} |\n`,
+				);
+				md.appendMarkdown(`| Score | ${team.score.toLocaleString()} |\n`);
+				md.appendMarkdown(`| Rank | ${team.rank.toLocaleString()} |\n`);
+				md.appendMarkdown(
+					`| Work Units | ${team.workUnits.toLocaleString()} |\n`,
+				);
+				md.appendMarkdown(
+					`| Contributions | ${team.contributions.toLocaleString()} |\n`,
+				);
+				md.appendMarkdown(
+					`| Contributed WUs | ${team.contributedWus.toLocaleString()} |\n`,
+				);
+			}
+
+			md.appendMarkdown(`\n_${statusLine}_`);
+			lastTooltip = md;
+			lastTooltipHash = hash;
+			return md;
+		}
+
+		const lines: string[] = [
+			"User Stats:",
+			`User: ${snapshot.userName} #${snapshot.userId}`,
+			`Score: ${snapshot.userScore.toLocaleString()}`,
+			`Rank: ${rankDisplay}`,
+			`Work Units: ${snapshot.userWus.toLocaleString()}`,
+			`Last Work: ${lastWorkFormatted}`,
+			`Last Refresh: ${updatedAtAbsolute}`,
+		];
+		if (snapshot.userActive50 !== undefined) {
+			lines.push(`Active (50 days): ${snapshot.userActive50}`);
+		}
+		if (snapshot.userActive7 !== undefined) {
+			lines.push(`Active (7 days): ${snapshot.userActive7}`);
+		}
+
+		if (team) {
+			lines.push("");
+			lines.push("Team Stats:");
+			lines.push(`Team: ${team.name} #${team.id}`);
+			lines.push(`Score: ${team.score.toLocaleString()}`);
+			lines.push(`Rank: ${team.rank.toLocaleString()}`);
+			lines.push(`Work Units: ${team.workUnits.toLocaleString()}`);
+			lines.push(`Contributions: ${team.contributions.toLocaleString()}`);
+			lines.push(`Contributed WUs: ${team.contributedWus.toLocaleString()}`);
+		}
+
+		lines.push("");
+		lines.push(statusLine);
+		const tooltip = lines.join("\n");
+		lastTooltip = tooltip;
+		lastTooltipHash = hash;
+		return tooltip;
+	};
+
+	const buildStatusBarText = (
+		snapshot: FAHStatsSnapshot,
+		config: ReturnType<typeof getFAHConfig>,
+	): string => {
+		const scoreFormatted = formatNumber(snapshot.userScore);
+		const rankFormatted = formatNumber(snapshot.userRank);
+		const lastWorkFormatted = config.showLastWork
+			? formatRelativeTime(snapshot.lastWork) ?? ""
+			: "";
+		const lastWorkText = lastWorkFormatted ? `${lastWorkFormatted} • ` : "";
+		const team = config.showTeamInfo ? snapshot.team : undefined;
+		const teamRankFormatted = team ? formatNumber(team.rank) : "";
+		const teamScoreFormatted = team ? formatNumber(team.score) : "";
+		const teamName = team?.name ?? "";
+		const teamInfo =
+			team
+				? ` | ${team.name} #${teamRankFormatted} • ${teamScoreFormatted} pts`
 				: "";
 
-			const teamRankFormatted = selectedTeam
-				? formatNumber(selectedTeam.trank)
-				: "";
-			const teamScoreFormatted = selectedTeam
-				? formatNumber(selectedTeam.tscore)
-				: "";
-			const teamInfo = selectedTeam
-				? ` | ${selectedTeam.name} #${teamRankFormatted} • ${teamScoreFormatted} pts`
-				: "";
-			statusBarItem.text = `FAH • ${lastWorkText}${userName}: #${rankFormatted} • ${scoreFormatted} pts${teamInfo}`;
-			statusBarItem.tooltip = tooltipParts.join("\n");
+		const template = config.statusBarTemplate.trim();
+		if (template) {
+			const context: TemplateContext = {
+				user: snapshot.userName,
+				rank: rankFormatted,
+				score: scoreFormatted,
+				team: teamName,
+				teamRank: teamRankFormatted,
+				teamScore: teamScoreFormatted,
+				lastWork: lastWorkFormatted,
+				updatedAt: formatUpdatedAtRelative(lastUpdatedAtMs),
+			};
+			const rendered = renderStatusBarTemplate(template, context);
+			if (rendered) {
+				return rendered;
+			}
+		}
+
+		if (config.compactStatusBar) {
+			return `FAH #${rankFormatted} • ${scoreFormatted} pts`;
+		}
+
+		return `FAH • ${lastWorkText}${snapshot.userName}: #${rankFormatted} • ${scoreFormatted} pts${teamInfo}`;
+	};
+
+	const buildClipboardText = (
+		snapshot: FAHStatsSnapshot,
+		config: ReturnType<typeof getFAHConfig>,
+	): string => {
+		const parts = [
+			`User: ${snapshot.userName} (#${snapshot.userId})`,
+			`Rank: ${snapshot.userRank.toLocaleString()}`,
+			`Score: ${snapshot.userScore.toLocaleString()}`,
+			`Work Units: ${snapshot.userWus.toLocaleString()}`,
+		];
+		const team = config.showTeamInfo ? snapshot.team : undefined;
+		if (team) {
+			parts.push(`Team: ${team.name} (#${team.id})`);
+			parts.push(`Team Rank: ${team.rank.toLocaleString()}`);
+			parts.push(`Team Score: ${team.score.toLocaleString()}`);
+		}
+		return parts.join(" | ");
+	};
+
+	const calculateIntervalSeconds = (baseSeconds: number, failures: number) => {
+		const resolvedBase =
+			Number.isFinite(baseSeconds) && baseSeconds >= 10 ? baseSeconds : 300;
+		const cap = 1800;
+		if (failures <= 0) {
+			return Math.min(resolvedBase, cap);
+		}
+		if (failures === 1) {
+			return Math.min(resolvedBase * 3, cap);
+		}
+		if (failures === 2) {
+			return Math.min(resolvedBase * 6, cap);
+		}
+		return cap;
+	};
+
+	const rescheduleInterval = (config: ReturnType<typeof getFAHConfig>) => {
+		clearIntervalIfSet();
+		if (config.paused) {
+			return;
+		}
+		const intervalSeconds = calculateIntervalSeconds(
+			Number(config.refreshInterval),
+			failureCount,
+		);
+		intervalId = setInterval(() => {
+			void updateStats(false);
+		}, intervalSeconds * 1000);
+	};
+
+	const fetchFAHStats = async (userId: string): Promise<FAHStats> => {
+		if (!USER_ID_REGEX.test(userId.trim())) {
+			throw new Error(
+				"Invalid user ID format. User ID must be a numeric value.",
+			);
+		}
+
+		const url = `https://api2.foldingathome.org/uid/${userId.trim()}`;
+
+		if (currentAbort) {
+			currentAbort.abort();
+		}
+		currentAbort = new AbortController();
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			timeoutId = setTimeout(() => {
+				currentAbort?.abort();
+				reject(new Error("timeout"));
+			}, 10000);
+		});
+
+		try {
+			const response = (await Promise.race([
+				fetch(url, {
+					signal: currentAbort.signal,
+					headers: {
+						"User-Agent": "vscode-fah-stats-extension",
+						Accept: "application/json",
+					},
+				}),
+				timeoutPromise,
+			])) as Response;
+			const bodyText = await response.text();
+			if (!response.ok) {
+				let message = "";
+				try {
+					const parsed = JSON.parse(bodyText) as { error?: string };
+					if (typeof parsed?.error === "string") {
+						message = parsed.error;
+					}
+				} catch {
+					// ignore JSON parse errors
+				}
+				message =
+					message || bodyText || `Request failed with status ${response.status}`;
+				throw new Error(message);
+			}
+			return bodyText ? (JSON.parse(bodyText) as FAHStats) : ({} as FAHStats);
+		} finally {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+		}
+	};
+
+	const setStatus = (
+		text: string,
+		tooltip: vscode.MarkdownString | string,
+		command = "fah-stats.refresh",
+	) => {
+		statusBarItem.text = text;
+		statusBarItem.tooltip = tooltip;
+		statusBarItem.command = command;
+	};
+
+	const updateStats = async (showLoading: boolean) => {
+		if (isRefreshing) {
+			return;
+		}
+		const config = getFAHConfig();
+		if (config.paused) {
+			setStatus(
+				"$(debug-pause) FAH: Paused",
+				lastSnapshot
+					? getTooltip(lastSnapshot, config, true)
+					: "Updates are paused. Toggle pause to resume fetching stats.",
+			);
+			return;
+		}
+
+		isRefreshing = true;
+		try {
+			if (showLoading) {
+				statusBarItem.text = "$(sync~spin) Loading FAH Stats...";
+			}
+
+			if (!config.userId) {
+				setStatus(
+					"$(error) FAH: Configure user ID",
+					"Please configure fahStats.userId (user ID) in settings",
+				);
+				return;
+			}
+
+			const userId = config.userId.trim();
+			if (!USER_ID_REGEX.test(userId)) {
+				setStatus(
+					"$(error) FAH: Invalid user ID",
+					"User ID must be numeric (e.g., 123456789). Please update your configuration.",
+					"fah-stats.welcome",
+				);
+				return;
+			}
+
+			const stats = await fetchFAHStats(userId);
+			const snapshot = normalizeStats(stats, config);
+			lastSnapshot = snapshot;
+			lastUpdatedAtMs = Date.now();
+			lastTooltipHash = null;
+			lastTooltip = null;
+			failureCount = 0;
+			rescheduleInterval(config);
+
+			setStatus(
+				buildStatusBarText(snapshot, config),
+				getTooltip(snapshot, config, false),
+			);
 		} catch (error) {
-			console.error("Error fetching FAH stats:", error);
+			if (error instanceof Error && error.name === "AbortError") {
+				return;
+			}
+
 			const errorMessage =
 				error instanceof Error ? error.message : "Unknown error";
+			failureCount += 1;
+			rescheduleInterval(config);
 
-			// Show user-friendly error message
-			if (errorMessage.includes("User not found")) {
-				statusBarItem.text = "$(error) FAH: User not found";
-				statusBarItem.tooltip = `${errorMessage}\n\nClick to open welcome page and update your username.`;
-				statusBarItem.command = "fah-stats.welcome";
-			} else if (errorMessage.includes("timeout")) {
-				statusBarItem.text = "$(error) FAH: Timeout";
-				statusBarItem.tooltip = `${errorMessage}\n\nClick to retry.`;
-			} else if (errorMessage.includes("Network error")) {
-				statusBarItem.text = "$(error) FAH: Network error";
-				statusBarItem.tooltip = `${errorMessage}\n\nClick to retry.`;
+			if (lastSnapshot) {
+				setStatus(
+					buildStatusBarText(lastSnapshot, config),
+					getTooltip(lastSnapshot, config, true),
+				);
 			} else {
-				statusBarItem.text = "$(error) FAH: Error";
-				statusBarItem.tooltip = `Failed to fetch Folding@Home statistics\n\n${errorMessage}\n\nClick to retry.`;
+				const cases = [
+					{
+						test: (message: string) => message.includes("User not found"),
+						text: "$(error) FAH: User not found",
+						tooltip: `${errorMessage}\n\nClick to open welcome page and update your user ID.`,
+						command: "fah-stats.welcome",
+					},
+					{
+						test: (message: string) => message.includes("timeout"),
+						text: "$(error) FAH: Timeout",
+						tooltip: `${errorMessage}\n\nClick to retry.`,
+					},
+					{
+						test: (message: string) => message.includes("Network error"),
+						text: "$(error) FAH: Network error",
+						tooltip: `${errorMessage}\n\nClick to retry.`,
+					},
+				];
+				const match = cases.find((entry) => entry.test(errorMessage));
+				setStatus(
+					match?.text ?? "$(error) FAH: Error",
+					match?.tooltip ??
+						`Failed to fetch Folding@Home statistics\n\n${errorMessage}\n\nClick to retry.`,
+					match?.command,
+				);
 			}
-			// Reset command to refresh on click
-			statusBarItem.command = "fah-stats.refresh";
+			outputChannel.appendLine(
+				`Error fetching Folding@Home stats: ${errorMessage}`,
+			);
+		} finally {
+			isRefreshing = false;
+			isInitialLoad = false;
 		}
 	};
 
-	// Format large numbers (e.g., 1000 -> 1K, 1000000 -> 1M, 1000000000 -> 1B, 1000000000000 -> 1T)
-	const formatNumber = (num: number): string => {
-		if (num >= 1000000000000) {
-			return `${(num / 1000000000000).toFixed(1)}T`;
-		} else if (num >= 1000000000) {
-			return `${(num / 1000000000).toFixed(1)}B`;
-		} else if (num >= 1000000) {
-			return `${(num / 1000000).toFixed(1)}M`;
-		} else if (num >= 1000) {
-			return `${(num / 1000).toFixed(1)}K`;
-		}
-		return num.toString();
-	};
-
-	// Format relative time (e.g., "12 minutes ago", "2 hours ago", "3 days ago")
-	const formatRelativeTime = (dateString: string | undefined): string | null => {
-		if (!dateString) {
-			return null;
-		}
-
-		try {
-			// Parse the date string "2025-11-17 16:14:37"
-			const date = dayjs(dateString);
-			if (!date.isValid()) {
-				return null;
-			}
-			return date.fromNow();
-		} catch (error) {
-			console.error("Error formatting relative time:", error);
-			return null;
-		}
-	};
-
-	// Register refresh command
 	const refreshCommand = vscode.commands.registerCommand(
 		"fah-stats.refresh",
 		() => {
-			updateStats();
+			void updateStats(true);
 		},
 	);
 
-	// Register welcome page command
+	const copyStatsCommand = vscode.commands.registerCommand(
+		"fah-stats.copyStats",
+		async () => {
+			if (!lastSnapshot) {
+				vscode.window.showInformationMessage(
+					"No stats available yet. Try refreshing first.",
+				);
+				return;
+			}
+			const config = getFAHConfig();
+			await vscode.env.clipboard.writeText(
+				buildClipboardText(lastSnapshot, config),
+			);
+			vscode.window.showInformationMessage("Stats copied to clipboard.");
+		},
+	);
+
+	const openProfileCommand = vscode.commands.registerCommand(
+		"fah-stats.openProfile",
+		async () => {
+			const config = getFAHConfig();
+			const userId = config.userId.trim();
+			if (!USER_ID_REGEX.test(userId)) {
+				vscode.window.showErrorMessage(
+					"Please configure a valid numeric Folding@Home user ID before opening the profile.",
+				);
+				return;
+			}
+			const url = `https://stats.foldingathome.org/donor/${userId}`;
+			await vscode.env.openExternal(vscode.Uri.parse(url));
+		},
+	);
+
+	const pauseUpdatesCommand = vscode.commands.registerCommand(
+		"fah-stats.pauseUpdates",
+		async () => {
+			const config = vscode.workspace.getConfiguration("fahStats");
+			const paused = config.get<boolean>("paused", false);
+			await config.update("paused", !paused, true);
+			const updatedConfig = getFAHConfig();
+			if (updatedConfig.paused) {
+				setStatus(
+					"$(debug-pause) FAH: Paused",
+					lastSnapshot
+						? getTooltip(lastSnapshot, updatedConfig, true)
+						: "Updates are paused. Toggle pause to resume fetching stats.",
+				);
+			} else {
+				rescheduleInterval(updatedConfig);
+				void updateStats(false);
+			}
+		},
+	);
+
 	const welcomeCommand = vscode.commands.registerCommand(
 		"fah-stats.welcome",
 		() => {
-			WelcomePage.show(context);
+			void WelcomePage.show(context);
 		},
 	);
 
-	// Register reset configuration command
 	const resetCommand = vscode.commands.registerCommand(
 		"fah-stats.reset",
 		async () => {
 			const config = vscode.workspace.getConfiguration("fahStats");
-			await config.update("userName", undefined, true);
+			await config.update("userId", undefined, true);
 			await config.update("teamName", undefined, true);
-			await config.update("passkey", undefined, true);
 			await config.update("refreshInterval", undefined, true);
+			await config.update("paused", undefined, true);
+			await config.update("showLastWork", undefined, true);
+			await config.update("showTeamInfo", undefined, true);
+			await config.update("compactStatusBar", undefined, true);
+			await config.update("statusBarTemplate", undefined, true);
+			await config.update("tooltipFormat", undefined, true);
+			await context.secrets.delete("fahStats.passkey");
 			vscode.window.showInformationMessage(
 				"Folding@Home configuration cleared. Welcome page will open.",
 			);
-			// Show welcome page after clearing
 			setTimeout(() => {
-				WelcomePage.show(context);
+				void WelcomePage.show(context);
 			}, 500);
 		},
 	);
 
-	context.subscriptions.push(statusBarItem, refreshCommand, welcomeCommand, resetCommand);
+	context.subscriptions.push(
+		statusBarItem,
+		refreshCommand,
+		copyStatsCommand,
+		openProfileCommand,
+		pauseUpdatesCommand,
+		welcomeCommand,
+		resetCommand,
+		outputChannel,
+	);
 
-	// Check if configuration is needed and show welcome page
-	const fahConfig = getFAHConfig();
-	if (!fahConfig.userName) {
-		// Show welcome page after a short delay to allow UI to initialize
+	const initialConfig = getFAHConfig();
+	if (!initialConfig.userId) {
 		setTimeout(() => {
-			WelcomePage.show(context);
+			void WelcomePage.show(context);
 		}, 1000);
 	}
 
-	// Initial update
-	updateStats();
+	void updateStats(isInitialLoad);
+	rescheduleInterval(initialConfig);
 
-	// Set up interval based on configuration
-	let intervalId: NodeJS.Timeout | undefined;
-	const setupInterval = () => {
-		if (intervalId) {
-			clearInterval(intervalId);
-		}
-		const fahConfig = getFAHConfig();
-		const intervalMs = fahConfig.refreshInterval * 1000; // Convert seconds to milliseconds
-		intervalId = setInterval(updateStats, intervalMs);
-	};
-
-	setupInterval();
-
-	// Listen for configuration changes
 	const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
-		if (e.affectsConfiguration("fahStats.refreshInterval")) {
-			setupInterval();
+		if (!e.affectsConfiguration("fahStats")) {
+			return;
 		}
+		const updatedConfig = getFAHConfig();
+		if (
+			e.affectsConfiguration("fahStats.refreshInterval") ||
+			e.affectsConfiguration("fahStats.paused")
+		) {
+			rescheduleInterval(updatedConfig);
+		}
+		if (updatedConfig.paused) {
+			setStatus(
+				"$(debug-pause) FAH: Paused",
+				lastSnapshot
+					? getTooltip(lastSnapshot, updatedConfig, true)
+					: "Updates are paused. Toggle pause to resume fetching stats.",
+			);
+			return;
+		}
+		void updateStats(false);
 	});
 
 	context.subscriptions.push({
 		dispose: () => {
-			if (intervalId) {
-				clearInterval(intervalId);
+			clearIntervalIfSet();
+			if (currentAbort) {
+				currentAbort.abort();
 			}
 			configWatcher.dispose();
 		},
@@ -397,5 +734,5 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-	console.log("Folding@Home Stats extension is now deactivated");
+	// No-op
 }
