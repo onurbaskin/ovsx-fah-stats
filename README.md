@@ -13,6 +13,7 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 - Interactive welcome page for setup
 - Detailed tooltips on hover
 - Manual refresh via command palette or status bar click
+- Copy stats to clipboard, open profile, and pause updates commands
 
 ## Screenshots
 
@@ -37,15 +38,24 @@ Add to your `settings.json`:
   "fahStats.userId": "123456789",             // Required: Your Folding@Home user ID
   "fahStats.teamName": "team-name",           // Optional: Preferred team (auto-selects if omitted)
   "fahStats.refreshInterval": 300,            // Optional: Refresh interval in seconds (default: 300)
+  "fahStats.paused": false,                   // Optional: Pause automatic updates (global)
   "fahStats.showLastWork": true,              // Optional: Show last recorded work time
+  "fahStats.showTeamInfo": true,              // Optional: Show team stats in tooltip/status bar
   "fahStats.compactStatusBar": false,         // Optional: Shorter status bar text
-  "fahStats.debugLogging": false              // Optional: Enable debug logging in Output panel
+  "fahStats.statusBarTemplate": "",           // Optional: Template with {user}, {rank}, {score}, {team}, {teamRank}, {teamScore}, {lastWork}, {updatedAt}
+  "fahStats.tooltipFormat": "markdown"        // Optional: Tooltip format ("markdown" or "plain")
 }
 ```
 
 ## Usage
 
 Statistics appear automatically in the status bar. Hover for tooltips. Click the status bar item or use Command Palette (`Cmd+Shift+P`) to refresh.
+
+Available commands:
+- `Folding@Home Stats: Refresh Folding@Home Stats`
+- `Folding@Home Stats: Copy Folding@Home Stats to Clipboard`
+- `Folding@Home Stats: Open Folding@Home Profile`
+- `Folding@Home Stats: Toggle Pause Updates`
 
 ## Development
 

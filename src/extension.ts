@@ -1,4 +1,3 @@
-import axios from "axios";
 import * as vscode from "vscode";
 import {
 	formatNumber,
@@ -80,9 +79,17 @@ export function activate(context: vscode.ExtensionContext) {
 	let isInitialLoad = true;
 	let lastSnapshot: FAHStatsSnapshot | null = null;
 	let lastUpdatedAtMs: number | null = null;
+	let lastTooltipHash: string | null = null;
+	let lastTooltip: vscode.MarkdownString | string | null = null;
 	let failureCount = 0;
 	let intervalId: NodeJS.Timeout | undefined;
 	let currentAbort: AbortController | undefined;
+	const clearIntervalIfSet = () => {
+		if (intervalId) {
+			clearInterval(intervalId);
+			intervalId = undefined;
+		}
+	};
 
 	const getFAHConfig = () => {
 		const config = vscode.workspace.getConfiguration("fahStats");
@@ -175,18 +182,17 @@ export function activate(context: vscode.ExtensionContext) {
 		if (hours < 24) {
 			return `${hours}h ago`;
 		}
-		const days = Math.floor(hours / 24);
-		return `${days}d ago`;
+		return `${Math.floor(hours / 24)}d ago`;
 	};
 
 	const escapeMarkdownTable = (value: string): string =>
 		value.replace(/\|/g, "\\|").replace(/\n/g, " ");
 
-	const buildTooltip = (
+	const getTooltip = (
 		snapshot: FAHStatsSnapshot,
 		config: ReturnType<typeof getFAHConfig>,
 		isStale: boolean,
-	): vscode.MarkdownString | string => {
+	) => {
 		const percentile =
 			snapshot.totalUsers && snapshot.userRank > 0
 				? ((snapshot.userRank / snapshot.totalUsers) * 100).toFixed(2)
@@ -195,10 +201,43 @@ export function activate(context: vscode.ExtensionContext) {
 			? `${snapshot.userRank.toLocaleString()} (Top ${percentile}%)`
 			: snapshot.userRank.toLocaleString();
 		const updatedAtText = formatUpdatedAtRelative(lastUpdatedAtMs);
+		const updatedAtAbsolute = lastUpdatedAtMs
+			? new Date(lastUpdatedAtMs).toLocaleString()
+			: "Unknown";
 		const lastWorkFormatted = formatRelativeTime(snapshot.lastWork) ?? "Unknown";
 		const statusLine = isStale
 			? `Stale (last updated ${updatedAtText})`
 			: `Updated ${updatedAtText}`;
+		const team = config.showTeamInfo ? snapshot.team : undefined;
+		const hash = [
+			snapshot.userId,
+			snapshot.userName,
+			snapshot.userScore,
+			snapshot.userWus,
+			snapshot.userRank,
+			snapshot.userActive50 ?? "",
+			snapshot.userActive7 ?? "",
+			snapshot.lastWork ?? "",
+			snapshot.totalUsers ?? "",
+			config.tooltipFormat,
+			config.showTeamInfo ? "1" : "0",
+			lastUpdatedAtMs ?? "",
+			isStale ? "1" : "0",
+			team
+				? [
+						team.id,
+						team.name,
+						team.rank,
+						team.score,
+						team.workUnits,
+						team.contributions,
+						team.contributedWus,
+					].join(",")
+				: "",
+		].join("|");
+		if (lastTooltip && hash === lastTooltipHash) {
+			return lastTooltip;
+		}
 
 		if (config.tooltipFormat === "markdown") {
 			const md = new vscode.MarkdownString(undefined, true);
@@ -217,6 +256,7 @@ export function activate(context: vscode.ExtensionContext) {
 				`| Work Units | ${snapshot.userWus.toLocaleString()} |\n`,
 			);
 			md.appendMarkdown(`| Last Work | ${lastWorkFormatted} |\n`);
+			md.appendMarkdown(`| Last Refresh | ${updatedAtAbsolute} |\n`);
 			if (snapshot.userActive50 !== undefined) {
 				md.appendMarkdown(`| Active (50 days) | ${snapshot.userActive50} |\n`);
 			}
@@ -224,42 +264,42 @@ export function activate(context: vscode.ExtensionContext) {
 				md.appendMarkdown(`| Active (7 days) | ${snapshot.userActive7} |\n`);
 			}
 
-			if (config.showTeamInfo && snapshot.team) {
+			if (team) {
 				md.appendMarkdown(`\n**Team Stats**\n\n`);
 				md.appendMarkdown(`| Field | Value |\n| --- | --- |\n`);
 				md.appendMarkdown(
 					`| Team | ${escapeMarkdownTable(
-						`${snapshot.team.name} #${snapshot.team.id}`,
+						`${team.name} #${team.id}`,
 					)} |\n`,
 				);
+				md.appendMarkdown(`| Score | ${team.score.toLocaleString()} |\n`);
+				md.appendMarkdown(`| Rank | ${team.rank.toLocaleString()} |\n`);
 				md.appendMarkdown(
-					`| Score | ${snapshot.team.score.toLocaleString()} |\n`,
+					`| Work Units | ${team.workUnits.toLocaleString()} |\n`,
 				);
 				md.appendMarkdown(
-					`| Rank | ${snapshot.team.rank.toLocaleString()} |\n`,
+					`| Contributions | ${team.contributions.toLocaleString()} |\n`,
 				);
 				md.appendMarkdown(
-					`| Work Units | ${snapshot.team.workUnits.toLocaleString()} |\n`,
-				);
-				md.appendMarkdown(
-					`| Contributions | ${snapshot.team.contributions.toLocaleString()} |\n`,
-				);
-				md.appendMarkdown(
-					`| Contributed WUs | ${snapshot.team.contributedWus.toLocaleString()} |\n`,
+					`| Contributed WUs | ${team.contributedWus.toLocaleString()} |\n`,
 				);
 			}
 
 			md.appendMarkdown(`\n_${statusLine}_`);
+			lastTooltip = md;
+			lastTooltipHash = hash;
 			return md;
 		}
 
-		const lines: string[] = [];
-		lines.push("User Stats:");
-		lines.push(`User: ${snapshot.userName} #${snapshot.userId}`);
-		lines.push(`Score: ${snapshot.userScore.toLocaleString()}`);
-		lines.push(`Rank: ${rankDisplay}`);
-		lines.push(`Work Units: ${snapshot.userWus.toLocaleString()}`);
-		lines.push(`Last Work: ${lastWorkFormatted}`);
+		const lines: string[] = [
+			"User Stats:",
+			`User: ${snapshot.userName} #${snapshot.userId}`,
+			`Score: ${snapshot.userScore.toLocaleString()}`,
+			`Rank: ${rankDisplay}`,
+			`Work Units: ${snapshot.userWus.toLocaleString()}`,
+			`Last Work: ${lastWorkFormatted}`,
+			`Last Refresh: ${updatedAtAbsolute}`,
+		];
 		if (snapshot.userActive50 !== undefined) {
 			lines.push(`Active (50 days): ${snapshot.userActive50}`);
 		}
@@ -267,24 +307,23 @@ export function activate(context: vscode.ExtensionContext) {
 			lines.push(`Active (7 days): ${snapshot.userActive7}`);
 		}
 
-		if (config.showTeamInfo && snapshot.team) {
+		if (team) {
 			lines.push("");
 			lines.push("Team Stats:");
-			lines.push(`Team: ${snapshot.team.name} #${snapshot.team.id}`);
-			lines.push(`Score: ${snapshot.team.score.toLocaleString()}`);
-			lines.push(`Rank: ${snapshot.team.rank.toLocaleString()}`);
-			lines.push(`Work Units: ${snapshot.team.workUnits.toLocaleString()}`);
-			lines.push(
-				`Contributions: ${snapshot.team.contributions.toLocaleString()}`,
-			);
-			lines.push(
-				`Contributed WUs: ${snapshot.team.contributedWus.toLocaleString()}`,
-			);
+			lines.push(`Team: ${team.name} #${team.id}`);
+			lines.push(`Score: ${team.score.toLocaleString()}`);
+			lines.push(`Rank: ${team.rank.toLocaleString()}`);
+			lines.push(`Work Units: ${team.workUnits.toLocaleString()}`);
+			lines.push(`Contributions: ${team.contributions.toLocaleString()}`);
+			lines.push(`Contributed WUs: ${team.contributedWus.toLocaleString()}`);
 		}
 
 		lines.push("");
 		lines.push(statusLine);
-		return lines.join("\n");
+		const tooltip = lines.join("\n");
+		lastTooltip = tooltip;
+		lastTooltipHash = hash;
+		return tooltip;
 	};
 
 	const buildStatusBarText = (
@@ -294,18 +333,16 @@ export function activate(context: vscode.ExtensionContext) {
 		const scoreFormatted = formatNumber(snapshot.userScore);
 		const rankFormatted = formatNumber(snapshot.userRank);
 		const lastWorkFormatted = config.showLastWork
-			? formatRelativeTime(snapshot.lastWork)
-			: null;
+			? formatRelativeTime(snapshot.lastWork) ?? ""
+			: "";
 		const lastWorkText = lastWorkFormatted ? `${lastWorkFormatted} • ` : "";
-		const teamRankFormatted = snapshot.team
-			? formatNumber(snapshot.team.rank)
-			: "";
-		const teamScoreFormatted = snapshot.team
-			? formatNumber(snapshot.team.score)
-			: "";
+		const team = config.showTeamInfo ? snapshot.team : undefined;
+		const teamRankFormatted = team ? formatNumber(team.rank) : "";
+		const teamScoreFormatted = team ? formatNumber(team.score) : "";
+		const teamName = team?.name ?? "";
 		const teamInfo =
-			config.showTeamInfo && snapshot.team
-				? ` | ${snapshot.team.name} #${teamRankFormatted} • ${teamScoreFormatted} pts`
+			team
+				? ` | ${team.name} #${teamRankFormatted} • ${teamScoreFormatted} pts`
 				: "";
 
 		const template = config.statusBarTemplate.trim();
@@ -314,10 +351,10 @@ export function activate(context: vscode.ExtensionContext) {
 				user: snapshot.userName,
 				rank: rankFormatted,
 				score: scoreFormatted,
-				team: snapshot.team?.name ?? "",
+				team: teamName,
 				teamRank: teamRankFormatted,
 				teamScore: teamScoreFormatted,
-				lastWork: lastWorkFormatted ?? "",
+				lastWork: lastWorkFormatted,
 				updatedAt: formatUpdatedAtRelative(lastUpdatedAtMs),
 			};
 			const rendered = renderStatusBarTemplate(template, context);
@@ -333,17 +370,21 @@ export function activate(context: vscode.ExtensionContext) {
 		return `FAH • ${lastWorkText}${snapshot.userName}: #${rankFormatted} • ${scoreFormatted} pts${teamInfo}`;
 	};
 
-	const buildClipboardText = (snapshot: FAHStatsSnapshot): string => {
+	const buildClipboardText = (
+		snapshot: FAHStatsSnapshot,
+		config: ReturnType<typeof getFAHConfig>,
+	): string => {
 		const parts = [
 			`User: ${snapshot.userName} (#${snapshot.userId})`,
 			`Rank: ${snapshot.userRank.toLocaleString()}`,
 			`Score: ${snapshot.userScore.toLocaleString()}`,
 			`Work Units: ${snapshot.userWus.toLocaleString()}`,
 		];
-		if (snapshot.team) {
-			parts.push(`Team: ${snapshot.team.name} (#${snapshot.team.id})`);
-			parts.push(`Team Rank: ${snapshot.team.rank.toLocaleString()}`);
-			parts.push(`Team Score: ${snapshot.team.score.toLocaleString()}`);
+		const team = config.showTeamInfo ? snapshot.team : undefined;
+		if (team) {
+			parts.push(`Team: ${team.name} (#${team.id})`);
+			parts.push(`Team Rank: ${team.rank.toLocaleString()}`);
+			parts.push(`Team Score: ${team.score.toLocaleString()}`);
 		}
 		return parts.join(" | ");
 	};
@@ -358,14 +399,14 @@ export function activate(context: vscode.ExtensionContext) {
 		if (failures === 1) {
 			return Math.min(resolvedBase * 3, cap);
 		}
-		return Math.min(resolvedBase * 6, cap);
+		if (failures === 2) {
+			return Math.min(resolvedBase * 6, cap);
+		}
+		return cap;
 	};
 
 	const rescheduleInterval = (config: ReturnType<typeof getFAHConfig>) => {
-		if (intervalId) {
-			clearInterval(intervalId);
-			intervalId = undefined;
-		}
+		clearIntervalIfSet();
 		if (config.paused) {
 			return;
 		}
@@ -374,7 +415,7 @@ export function activate(context: vscode.ExtensionContext) {
 			failureCount,
 		);
 		intervalId = setInterval(() => {
-			void updateStats({ showLoading: false, force: false });
+			void updateStats(false);
 		}, intervalSeconds * 1000);
 	};
 
@@ -391,58 +432,94 @@ export function activate(context: vscode.ExtensionContext) {
 			currentAbort.abort();
 		}
 		currentAbort = new AbortController();
-
-		const response = await axios.get<FAHStats>(url, {
-			timeout: 10000,
-			signal: currentAbort.signal,
-			headers: {
-				"User-Agent": "vscode-fah-stats-extension",
-				Accept: "application/json",
-			},
+		let timeoutId: ReturnType<typeof setTimeout> | undefined;
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			timeoutId = setTimeout(() => {
+				currentAbort?.abort();
+				reject(new Error("timeout"));
+			}, 10000);
 		});
-		return response.data;
-	};
 
-	const renderPausedState = (config: ReturnType<typeof getFAHConfig>) => {
-		statusBarItem.text = "$(debug-pause) FAH: Paused";
-		statusBarItem.command = "fah-stats.refresh";
-		if (lastSnapshot) {
-			statusBarItem.tooltip = buildTooltip(lastSnapshot, config, true);
-		} else {
-			statusBarItem.tooltip =
-				"Updates are paused. Toggle pause to resume fetching stats.";
+		try {
+			const response = (await Promise.race([
+				fetch(url, {
+					signal: currentAbort.signal,
+					headers: {
+						"User-Agent": "vscode-fah-stats-extension",
+						Accept: "application/json",
+					},
+				}),
+				timeoutPromise,
+			])) as Response;
+			const bodyText = await response.text();
+			if (!response.ok) {
+				let message = "";
+				try {
+					const parsed = JSON.parse(bodyText) as { error?: string };
+					if (typeof parsed?.error === "string") {
+						message = parsed.error;
+					}
+				} catch {
+					// ignore JSON parse errors
+				}
+				message =
+					message || bodyText || `Request failed with status ${response.status}`;
+				throw new Error(message);
+			}
+			return bodyText ? (JSON.parse(bodyText) as FAHStats) : ({} as FAHStats);
+		} finally {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
 		}
 	};
 
-	const updateStats = async (options: { showLoading: boolean; force: boolean }) => {
+	const setStatus = (
+		text: string,
+		tooltip: vscode.MarkdownString | string,
+		command = "fah-stats.refresh",
+	) => {
+		statusBarItem.text = text;
+		statusBarItem.tooltip = tooltip;
+		statusBarItem.command = command;
+	};
+
+	const updateStats = async (showLoading: boolean) => {
 		if (isRefreshing) {
 			return;
 		}
 		const config = getFAHConfig();
-		if (config.paused && !options.force) {
-			renderPausedState(config);
+		if (config.paused) {
+			setStatus(
+				"$(debug-pause) FAH: Paused",
+				lastSnapshot
+					? getTooltip(lastSnapshot, config, true)
+					: "Updates are paused. Toggle pause to resume fetching stats.",
+			);
 			return;
 		}
 
 		isRefreshing = true;
 		try {
-			if (options.showLoading) {
+			if (showLoading) {
 				statusBarItem.text = "$(sync~spin) Loading FAH Stats...";
 			}
 
 			if (!config.userId) {
-				statusBarItem.text = "$(error) FAH: Configure user ID";
-				statusBarItem.tooltip =
-					"Please configure fahStats.userId (user ID) in settings";
+				setStatus(
+					"$(error) FAH: Configure user ID",
+					"Please configure fahStats.userId (user ID) in settings",
+				);
 				return;
 			}
 
 			const userId = config.userId.trim();
 			if (!USER_ID_REGEX.test(userId)) {
-				statusBarItem.text = "$(error) FAH: Invalid user ID";
-				statusBarItem.tooltip =
-					"User ID must be numeric (e.g., 123456789). Please update your configuration.";
-				statusBarItem.command = "fah-stats.welcome";
+				setStatus(
+					"$(error) FAH: Invalid user ID",
+					"User ID must be numeric (e.g., 123456789). Please update your configuration.",
+					"fah-stats.welcome",
+				);
 				return;
 			}
 
@@ -450,14 +527,17 @@ export function activate(context: vscode.ExtensionContext) {
 			const snapshot = normalizeStats(stats, config);
 			lastSnapshot = snapshot;
 			lastUpdatedAtMs = Date.now();
+			lastTooltipHash = null;
+			lastTooltip = null;
 			failureCount = 0;
 			rescheduleInterval(config);
 
-			statusBarItem.text = buildStatusBarText(snapshot, config);
-			statusBarItem.tooltip = buildTooltip(snapshot, config, false);
-			statusBarItem.command = "fah-stats.refresh";
+			setStatus(
+				buildStatusBarText(snapshot, config),
+				getTooltip(snapshot, config, false),
+			);
 		} catch (error) {
-			if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") {
+			if (error instanceof Error && error.name === "AbortError") {
 				return;
 			}
 
@@ -467,26 +547,37 @@ export function activate(context: vscode.ExtensionContext) {
 			rescheduleInterval(config);
 
 			if (lastSnapshot) {
-				statusBarItem.text = buildStatusBarText(lastSnapshot, config);
-				statusBarItem.tooltip = buildTooltip(lastSnapshot, config, true);
-				statusBarItem.command = "fah-stats.refresh";
-			} else if (errorMessage.includes("User not found")) {
-				statusBarItem.text = "$(error) FAH: User not found";
-				statusBarItem.tooltip =
-					`${errorMessage}\n\nClick to open welcome page and update your user ID.`;
-				statusBarItem.command = "fah-stats.welcome";
-			} else if (errorMessage.includes("timeout")) {
-				statusBarItem.text = "$(error) FAH: Timeout";
-				statusBarItem.tooltip = `${errorMessage}\n\nClick to retry.`;
-			} else if (errorMessage.includes("Network error")) {
-				statusBarItem.text = "$(error) FAH: Network error";
-				statusBarItem.tooltip = `${errorMessage}\n\nClick to retry.`;
+				setStatus(
+					buildStatusBarText(lastSnapshot, config),
+					getTooltip(lastSnapshot, config, true),
+				);
 			} else {
-				statusBarItem.text = "$(error) FAH: Error";
-				statusBarItem.tooltip =
-					`Failed to fetch Folding@Home statistics\n\n${errorMessage}\n\nClick to retry.`;
+				const cases = [
+					{
+						test: (message: string) => message.includes("User not found"),
+						text: "$(error) FAH: User not found",
+						tooltip: `${errorMessage}\n\nClick to open welcome page and update your user ID.`,
+						command: "fah-stats.welcome",
+					},
+					{
+						test: (message: string) => message.includes("timeout"),
+						text: "$(error) FAH: Timeout",
+						tooltip: `${errorMessage}\n\nClick to retry.`,
+					},
+					{
+						test: (message: string) => message.includes("Network error"),
+						text: "$(error) FAH: Network error",
+						tooltip: `${errorMessage}\n\nClick to retry.`,
+					},
+				];
+				const match = cases.find((entry) => entry.test(errorMessage));
+				setStatus(
+					match?.text ?? "$(error) FAH: Error",
+					match?.tooltip ??
+						`Failed to fetch Folding@Home statistics\n\n${errorMessage}\n\nClick to retry.`,
+					match?.command,
+				);
 			}
-			statusBarItem.command = "fah-stats.refresh";
 			outputChannel.appendLine(
 				`Error fetching Folding@Home stats: ${errorMessage}`,
 			);
@@ -499,7 +590,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const refreshCommand = vscode.commands.registerCommand(
 		"fah-stats.refresh",
 		() => {
-			void updateStats({ showLoading: true, force: true });
+			void updateStats(true);
 		},
 	);
 
@@ -512,7 +603,10 @@ export function activate(context: vscode.ExtensionContext) {
 				);
 				return;
 			}
-			await vscode.env.clipboard.writeText(buildClipboardText(lastSnapshot));
+			const config = getFAHConfig();
+			await vscode.env.clipboard.writeText(
+				buildClipboardText(lastSnapshot, config),
+			);
 			vscode.window.showInformationMessage("Stats copied to clipboard.");
 		},
 	);
@@ -541,10 +635,15 @@ export function activate(context: vscode.ExtensionContext) {
 			await config.update("paused", !paused, true);
 			const updatedConfig = getFAHConfig();
 			if (updatedConfig.paused) {
-				renderPausedState(updatedConfig);
+				setStatus(
+					"$(debug-pause) FAH: Paused",
+					lastSnapshot
+						? getTooltip(lastSnapshot, updatedConfig, true)
+						: "Updates are paused. Toggle pause to resume fetching stats.",
+				);
 			} else {
 				rescheduleInterval(updatedConfig);
-				void updateStats({ showLoading: false, force: true });
+				void updateStats(false);
 			}
 		},
 	);
@@ -597,7 +696,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}, 1000);
 	}
 
-	void updateStats({ showLoading: isInitialLoad, force: true });
+	void updateStats(isInitialLoad);
 	rescheduleInterval(initialConfig);
 
 	const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
@@ -611,14 +710,21 @@ export function activate(context: vscode.ExtensionContext) {
 		) {
 			rescheduleInterval(updatedConfig);
 		}
-		void updateStats({ showLoading: false, force: false });
+		if (updatedConfig.paused) {
+			setStatus(
+				"$(debug-pause) FAH: Paused",
+				lastSnapshot
+					? getTooltip(lastSnapshot, updatedConfig, true)
+					: "Updates are paused. Toggle pause to resume fetching stats.",
+			);
+			return;
+		}
+		void updateStats(false);
 	});
 
 	context.subscriptions.push({
 		dispose: () => {
-			if (intervalId) {
-				clearInterval(intervalId);
-			}
+			clearIntervalIfSet();
 			if (currentAbort) {
 				currentAbort.abort();
 			}

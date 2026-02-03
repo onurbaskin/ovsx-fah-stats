@@ -21,6 +21,7 @@ export class WelcomePage {
 			columnToShowIn || vscode.ViewColumn.One,
 			{
 				enableScripts: true,
+				retainContextWhenHidden: false,
 				localResourceRoots: [
 					vscode.Uri.joinPath(context.extensionUri, "media"),
 				],
@@ -50,8 +51,6 @@ export class WelcomePage {
 			panel.webview,
 		);
 
-		void panel.webview.postMessage({ command: "init", data: currentConfig });
-
 		panel.webview.onDidReceiveMessage(
 			async (message) => {
 				switch (message.command) {
@@ -80,6 +79,16 @@ export class WelcomePage {
 		panel.onDidDispose(
 			() => {
 				WelcomePage.currentPanel = undefined;
+			},
+			null,
+			context.subscriptions,
+		);
+
+		panel.onDidChangeViewState(
+			(e) => {
+				if (!e.webviewPanel.visible) {
+					e.webviewPanel.dispose();
+				}
 			},
 			null,
 			context.subscriptions,

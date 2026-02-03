@@ -20,4 +20,6 @@ PUBLISHING.md
 .gitignore
 .eslintrc.json
 packages/**
-
+media/screenshots/**
+media/.DS_Store
+.DS_Store

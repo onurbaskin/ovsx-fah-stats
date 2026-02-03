@@ -13,6 +13,12 @@ const buildOptions = {
 	platform: "node",
 	sourcemap: !isProduction,
 	minify: isProduction,
+	legalComments: "none",
+	define: {
+		"process.env.NODE_ENV": JSON.stringify(
+			isProduction ? "production" : "development",
+		),
+	},
 	logLevel: "info",
 };
 

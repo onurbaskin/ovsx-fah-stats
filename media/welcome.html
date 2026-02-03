@@ -66,7 +66,8 @@
 		}
 		input[type="text"],
 		input[type="password"],
-		input[type="number"] {
+		input[type="number"],
+		select {
 			width: 100%;
 			padding: 6px 8px;
 			border: 1px solid var(--vscode-input-border);
@@ -79,7 +80,8 @@
 		}
 		input[type="text"]:focus,
 		input[type="password"]:focus,
-		input[type="number"]:focus {
+		input[type="number"]:focus,
+		select:focus {
 			outline: none;
 			border-color: var(--vscode-focusBorder);
 		}
@@ -103,6 +105,13 @@
 			color: var(--vscode-descriptionForeground);
 			margin-top: 4px;
 			line-height: 1.4;
+		}
+		.help-text a {
+			color: var(--vscode-textLink-foreground);
+			text-decoration: none;
+		}
+		.help-text a:hover {
+			text-decoration: underline;
 		}
 		.button-group {
 			display: flex;
@@ -173,7 +182,11 @@
 				<div class="form-group">
 					<label for="userId">User ID <span class="required">*</span></label>
 					<input type="text" id="userId" name="userId" placeholder="123456789">
-					<div class="help-text">Your Folding@Home numeric user ID (not username)</div>
+					<div class="help-text">
+						Your Folding@Home numeric user ID (not username).
+						<a href="https://stats.foldingathome.org/" target="_blank" rel="noreferrer">Find your user ID</a>
+						by searching for your donor name.
+					</div>
 					<div id="userIdError" class="error">Please enter a valid numeric user ID</div>
 				</div>
 
@@ -211,18 +224,27 @@
 
 				<div class="form-group">
 					<div class="checkbox-group">
-						<input type="checkbox" id="compactStatusBar" name="compactStatusBar">
-						<label for="compactStatusBar">Compact status bar layout</label>
+						<input type="checkbox" id="showTeamInfo" name="showTeamInfo">
+						<label for="showTeamInfo">Show team statistics</label>
 					</div>
-					<div class="help-text">Show a shorter status bar entry to reduce truncation</div>
+					<div class="help-text">Include team stats in the status bar and tooltip</div>
+				</div>
+
+				<div class="form-group">
+					<label for="tooltipFormat">Tooltip Format</label>
+					<select id="tooltipFormat" name="tooltipFormat">
+						<option value="markdown">Markdown (rich)</option>
+						<option value="plain">Plain text</option>
+					</select>
+					<div class="help-text">Choose a tooltip style for readability</div>
 				</div>
 
 				<div class="form-group">
 					<div class="checkbox-group">
-						<input type="checkbox" id="debugLogging" name="debugLogging">
-						<label for="debugLogging">Enable debug logging</label>
+						<input type="checkbox" id="compactStatusBar" name="compactStatusBar">
+						<label for="compactStatusBar">Compact status bar layout</label>
 					</div>
-					<div class="help-text">Log API responses and errors to the Output panel</div>
+					<div class="help-text">Show a shorter status bar entry to reduce truncation</div>
 				</div>
 
 				<div class="button-group">
@@ -235,7 +257,6 @@
 
 	<script nonce="__NONCE__">
 		const vscode = acquireVsCodeApi();
-		const initialConfig = __CONFIG__;
 
 		const form = document.getElementById("configForm");
 		const userIdInput = document.getElementById("userId");
@@ -245,16 +266,28 @@
 		const refreshError = document.getElementById("refreshError");
 		const cancelBtn = document.getElementById("cancelBtn");
 
-		userIdInput.value = initialConfig.userId || "";
-		document.getElementById("teamName").value = initialConfig.teamName || "";
-		refreshIntervalInput.value = String(initialConfig.refreshInterval ?? 300);
-		document.getElementById("showLastWork").checked = Boolean(initialConfig.showLastWork);
-		document.getElementById("compactStatusBar").checked = Boolean(initialConfig.compactStatusBar);
-		document.getElementById("debugLogging").checked = Boolean(initialConfig.debugLogging);
+		const applyConfig = (initialConfig) => {
+			userIdInput.value = initialConfig.userId || "";
+			document.getElementById("teamName").value = initialConfig.teamName || "";
+			refreshIntervalInput.value = String(initialConfig.refreshInterval ?? 300);
+			document.getElementById("showLastWork").checked = Boolean(initialConfig.showLastWork);
+			document.getElementById("showTeamInfo").checked = Boolean(initialConfig.showTeamInfo);
+			document.getElementById("compactStatusBar").checked = Boolean(initialConfig.compactStatusBar);
+			document.getElementById("tooltipFormat").value = initialConfig.tooltipFormat || "markdown";
 
-		if (initialConfig.passkeyStored) {
-			passkeyHelp.textContent = "Passkey stored securely. Leave blank to clear.";
-		}
+			if (initialConfig.passkeyStored) {
+				passkeyHelp.textContent = "Passkey stored securely. Leave blank to clear.";
+			} else {
+				passkeyHelp.textContent = "Optional passkey stored securely in your system keychain";
+			}
+		};
+
+		window.addEventListener("message", (event) => {
+			const message = event.data;
+			if (message && message.command === "init") {
+				applyConfig(message.data || {});
+			}
+		});
 
 		form.addEventListener("submit", (event) => {
 			event.preventDefault();
@@ -283,8 +316,9 @@
 				passkey: document.getElementById("passkey").value.trim(),
 				refreshInterval,
 				showLastWork: document.getElementById("showLastWork").checked,
+				showTeamInfo: document.getElementById("showTeamInfo").checked,
 				compactStatusBar: document.getElementById("compactStatusBar").checked,
-				debugLogging: document.getElementById("debugLogging").checked,
+				tooltipFormat: document.getElementById("tooltipFormat").value,
 			};
 
 			vscode.postMessage({
@@ -304,6 +338,8 @@
 		refreshIntervalInput.addEventListener("input", () => {
 			refreshError.classList.remove("show");
 		});
+
+		vscode.postMessage({ command: "ready" });
 	</script>
 </body>
 </html>
