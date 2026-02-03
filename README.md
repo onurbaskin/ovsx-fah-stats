@@ -17,6 +17,10 @@ A VS Code extension that displays your [Folding@Home](https://foldingathome.org/
 - Status bar template customization
 - Cached stats shown during transient errors with a stale indicator
 
+## Why This Extension
+
+Folding@Home had a big moment when the community rallied around COVID-19 research, and I was folding while coding. I spend most of my time in VS Code, so I wanted a tiny, no‑nonsense way to glance at my stats without opening a browser. Out of boredom (and curiosity), I built this extension to keep the numbers in my peripheral vision. It’s simple, does exactly what it says, and stays out of the way—plus the bundled extension code is under ~14kb.
+
 ## Screenshots
 
 ![Status Bar](https://raw.githubusercontent.com/onurbaskin/ovsx-fah-stats/main/media/screenshots/status_bar_v0_1_13.png)
