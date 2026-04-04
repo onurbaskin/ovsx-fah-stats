@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [2026-04-04]
+- chore: upgraded vscode engine version
 - chore: updated changelog format
 - chore: exluded some dirs
 - chore: update readme
