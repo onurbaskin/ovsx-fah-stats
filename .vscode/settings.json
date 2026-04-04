@@ -1,4 +1,8 @@
 {
+	"files.exclude": {
+		"node_modules/": true,
+		"out/": true
+	},
 	"editor.formatOnSave": true,
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.formatOnSaveMode": "file",
@@ -16,6 +20,5 @@
 	},
 	"[css]": {
 		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"html.experimentalFullSupportEnabled": true
+	}
 }
