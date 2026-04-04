@@ -1,7 +1,7 @@
 # Folding@Home Stats
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![VS Code Version](https://img.shields.io/badge/VS%20Code-1.99.0+-blue.svg)](https://code.visualstudio.com/)
+[![VS Code Version](https://img.shields.io/badge/VS%20Code-1.99.0-blue.svg)](https://code.visualstudio.com/)
 
 A VS Code extension that displays your [Folding@Home](https://foldingathome.org/) statistics directly in the status bar. Track your contributions to scientific research while you code!
 
@@ -61,7 +61,8 @@ Available commands:
 - `Folding@Home Stats: Refresh Folding@Home Stats`
 - `Folding@Home Stats: Copy Folding@Home Stats to Clipboard`
 - `Folding@Home Stats: Open Folding@Home Profile`
-- `Folding@Home Stats: Toggle Pause Updates`
+- `Folding@Home Stats: Open Welcome Page`
+- `Folding@Home Stats: Reset Configuration`
 
 ## Development
 
