@@ -1,5 +1,4 @@
-const DATE_REGEX =
-	/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+const DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 
 export interface TemplateContext {
 	user: string;
@@ -63,9 +62,7 @@ export const formatRelativeTime = (
 			if (value === 1) {
 				return isFuture ? `in ${singular}` : `${singular} ago`;
 			}
-			return isFuture
-				? `in ${value} ${unit}`
-				: `${value} ${unit} ago`;
+			return isFuture ? `in ${value} ${unit}` : `${value} ${unit} ago`;
 		};
 
 		if (absSeconds < 45) {
@@ -106,10 +103,7 @@ export const formatRelativeTime = (
 	}
 };
 
-export const renderStatusBarTemplate = (
-	template: string,
-	context: TemplateContext,
-): string => {
+export const renderStatusBarTemplate = (template: string, context: TemplateContext): string => {
 	const hasBraces = template.includes("{") || template.includes("}");
 	let hasInvalidToken = false;
 	const resolved = template.replace(/\{(\w+)\}/g, (_match, key: string) => {

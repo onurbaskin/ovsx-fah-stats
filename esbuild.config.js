@@ -15,9 +15,7 @@ const buildOptions = {
 	minify: isProduction,
 	legalComments: "none",
 	define: {
-		"process.env.NODE_ENV": JSON.stringify(
-			isProduction ? "production" : "development",
-		),
+		"process.env.NODE_ENV": JSON.stringify(isProduction ? "production" : "development"),
 	},
 	logLevel: "info",
 };
@@ -28,7 +26,5 @@ if (isWatch) {
 		.then((context) => context.watch())
 		.catch(() => process.exit(1));
 } else {
-	esbuild
-		.build(buildOptions)
-		.catch(() => process.exit(1));
+	esbuild.build(buildOptions).catch(() => process.exit(1));
 }

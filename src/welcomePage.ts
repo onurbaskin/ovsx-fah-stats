@@ -22,9 +22,7 @@ export class WelcomePage {
 			{
 				enableScripts: true,
 				retainContextWhenHidden: false,
-				localResourceRoots: [
-					vscode.Uri.joinPath(context.extensionUri, "media"),
-				],
+				localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, "media")],
 			},
 		);
 
@@ -39,26 +37,18 @@ export class WelcomePage {
 			showLastWork: config.get<boolean>("showLastWork", true),
 			showTeamInfo: config.get<boolean>("showTeamInfo", true),
 			compactStatusBar: config.get<boolean>("compactStatusBar", false),
-			tooltipFormat: config.get<"plain" | "markdown">(
-				"tooltipFormat",
-				"markdown",
-			),
+			tooltipFormat: config.get<"plain" | "markdown">("tooltipFormat", "markdown"),
 			passkeyStored: Boolean(storedPasskey),
 		};
 
-		panel.webview.html = WelcomePage.getWebviewContent(
-			context,
-			panel.webview,
-		);
+		panel.webview.html = WelcomePage.getWebviewContent(context, panel.webview);
 
 		panel.webview.onDidReceiveMessage(
 			async (message) => {
 				switch (message.command) {
 					case "saveConfig":
 						await WelcomePage.saveConfiguration(context, message.data);
-						vscode.window.showInformationMessage(
-							"Folding@Home configuration saved successfully!",
-						);
+						vscode.window.showInformationMessage("Folding@Home configuration saved successfully!");
 						panel.dispose();
 						break;
 					case "ready":
@@ -132,15 +122,12 @@ export class WelcomePage {
 		const htmlPath = path.join(context.extensionPath, "media", "welcome.html");
 		const rawHtml = readFileSync(htmlPath, "utf8");
 		const nonce = WelcomePage.createNonce();
-		return rawHtml
-			.replace(/__NONCE__/g, nonce)
-			.replace(/__CSP_SOURCE__/g, webview.cspSource);
+		return rawHtml.replace(/__NONCE__/g, nonce).replace(/__CSP_SOURCE__/g, webview.cspSource);
 	}
 
 	private static createNonce(): string {
 		let text = "";
-		const possible =
-			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+		const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 		for (let i = 0; i < 32; i += 1) {
 			text += possible.charAt(Math.floor(Math.random() * possible.length));
 		}
